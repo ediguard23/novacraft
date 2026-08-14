@@ -1,0 +1,34 @@
+{
+  "name": "novacraft-launcher",
+  "version": "2.0.0",
+  "description": "Launcher de Minecraft con verificacion de integridad, gestion automatica de Java y soporte de modloaders.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --enable-logging",
+    "build": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
+  },
+  "author": "NovaCraft",
+  "keywords": [
+    "minecraft",
+    "launcher",
+    "electron",
+    "modrinth",
+    "fabric"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CAMBIA-ESTO-POR-TU-USUARIO/novacraft-launcher.git"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.18",
+    "electron-updater": "^6.8.9",
+    "minecraft-launcher-core": "^3.18.2"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^26.15.3"
+  }
+}

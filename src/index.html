@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NovaCraft Launcher</title>
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <!-- Fondo: campo de olas raymarcheado en WebGL -->
+  <canvas id="bg-canvas"></canvas>
+  <div class="bg-veil"></div>
+
+  <!-- Pantalla de carga -->
+  <div id="splash">
+    <div class="splash-inner">
+      <div class="splash-mark"></div>
+      <h1 class="splash-title">NovaCraft</h1>
+      <p class="splash-sub">Encendiendo los motores...</p>
+      <div class="splash-bar"><i></i></div>
+    </div>
+  </div>
+
+  <div id="app-root">
+    <!-- ================================================== barra superior -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="brand">
+          <div class="brand-mark">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+          </div>
+          <span>NovaCraft</span>
+        </div>
+
+        <div class="status-chip">
+          <span class="pulse-dot"></span>
+          <span id="top-status">Listo</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <div class="account-chip clickable" id="btn-account" data-magnet="0.2" title="Gestionar cuenta">
+          <div class="account-avatar">
+            <img id="top-skin" src="https://mc-heads.net/avatar/Steve/64" alt="">
+          </div>
+          <div class="account-meta">
+            <span class="account-name" id="top-username">Player</span>
+            <span class="account-tag offline" id="top-account-type">Offline</span>
+          </div>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+
+        <div class="win-controls">
+          <button class="win-btn" id="win-min" title="Minimizar">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="win-btn" id="win-max" title="Maximizar">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="4" y="4" width="16" height="16" rx="2.5"/></svg>
+          </button>
+          <button class="win-btn close" id="win-close" title="Cerrar">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Aviso de nueva version. Aparece solo cuando hay algo que contar. -->
+    <div class="update-bar" id="update-bar">
+      <span class="update-icon" id="update-icon">↓</span>
+      <span class="update-text" id="update-text"></span>
+      <div class="update-mini-track" id="update-track"><div class="update-mini-fill" id="update-fill"></div></div>
+      <button class="btn btn-primary btn-sm" id="btn-update-install">Reiniciar e instalar</button>
+      <button class="update-close" id="btn-update-hide" title="Ocultar">✕</button>
+    </div>
+
+    <div class="shell">
+      <!-- ================================================== dock lateral -->
+      <nav class="dock" id="dock">
+        <div class="dock-indicator" id="dock-indicator"></div>
+
+        <button class="nav-item active" data-page="page-home" data-label="Inicio">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </button>
+
+        <button class="nav-item" data-page="page-profiles" data-label="Perfiles">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+        </button>
+
+        <button class="nav-item" data-page="page-versions" data-label="Versiones">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        </button>
+
+        <button class="nav-item" data-page="page-mods" data-label="Mods">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        </button>
+
+        <div class="dock-spacer"></div>
+        <div class="dock-sep"></div>
+
+        <button class="nav-item" data-page="page-settings" data-label="Ajustes">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </nav>
+
+      <!-- ================================================== contenido -->
+      <main class="content">
+
+        <!-- ---------------------------------------------- INICIO -->
+        <section id="page-home" class="page active">
+          <div class="home-grid">
+            <div>
+              <!-- Heroe -->
+              <div class="hero" data-spotlight>
+                <div class="hero-inner">
+                  <div class="hero-eyebrow">
+                    <span class="pulse-dot"></span>
+                    <span id="hero-badge">Todo listo para jugar</span>
+                  </div>
+
+                  <h1 class="hero-title">
+                    Hola, <span class="accent" id="home-name">Player</span>
+                  </h1>
+                  <p class="hero-desc" data-reveal>
+                    Tu launcher verifica cada archivo antes de abrir el juego, elige el Java correcto para cada version y mantiene tus mods separados por perfil.
+                  </p>
+
+                  <div class="launch-row">
+                    <button class="btn-play" id="btn-launch" data-magnet="0.28" data-magnet-radius="150">
+                      <span class="play-label" id="launch-label">JUGAR</span>
+                      <span class="play-sub" id="launch-sub">Minecraft 1.21.11</span>
+                    </button>
+
+                    <div class="version-pill clickable" id="quick-version" data-magnet="0.22" title="Elegir version">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/></svg>
+                      <div class="version-pill-meta">
+                        <span class="version-pill-cap">Version</span>
+                        <span class="version-pill-name" id="pill-version">1.21.11</span>
+                      </div>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+
+                    <button class="btn btn-ghost" id="btn-repair" title="Verificar y reponer archivos danados">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                      Reparar
+                    </button>
+                  </div>
+
+                  <!-- Progreso -->
+                  <div class="progress-wrap" id="progress-box">
+                    <div class="progress-head">
+                      <span class="progress-msg" id="progress-msg">Preparando...</span>
+                      <span class="progress-pct" id="progress-pct">0%</span>
+                    </div>
+                    <div class="progress-track">
+                      <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Accesos rapidos -->
+              <div class="quick-row" id="quick-row">
+                <div class="quick-chip clickable" data-goto="page-profiles"><span class="emoji">🧩</span> Mis perfiles</div>
+                <div class="quick-chip clickable" data-goto="page-mods"><span class="emoji">🌐</span> Explorar mods</div>
+                <div class="quick-chip clickable" data-goto="page-versions"><span class="emoji">📦</span> Versiones</div>
+                <div class="quick-chip clickable" id="chip-open-folder"><span class="emoji">📁</span> Abrir carpeta</div>
+              </div>
+            </div>
+
+            <!-- Panel lateral -->
+            <aside class="home-aside">
+              <div class="panel" data-spotlight>
+                <div class="panel-head"><span>Tu equipo</span></div>
+                <div class="stat-grid">
+                  <div class="stat">
+                    <div class="stat-val" id="stat-ram">0</div>
+                    <div class="stat-key">GB de RAM</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-val" id="stat-cpu">0</div>
+                    <div class="stat-key">Nucleos CPU</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-val" id="stat-profiles">0</div>
+                    <div class="stat-key">Perfiles</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-val" id="stat-java">—</div>
+                    <div class="stat-key">Java activo</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel" data-spotlight>
+                <div class="panel-head">
+                  <span>Amigos</span>
+                  <span id="friends-count" style="font-weight:600; letter-spacing:0;">—</span>
+                </div>
+
+                <!-- Tu propia presencia, detectada del log del juego -->
+                <div class="friend-row me" id="my-presence">
+                  <div class="friend-avatar"><img id="my-avatar" src="https://mc-heads.net/avatar/Steve/48" alt=""></div>
+                  <div class="friend-meta">
+                    <div class="friend-name" id="my-name">Player</div>
+                    <div class="friend-status" id="my-status">Desconectado</div>
+                  </div>
+                  <span class="presence-dot" id="my-dot"></span>
+                </div>
+
+                <div id="friends-list"></div>
+              </div>
+
+              <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+                <div class="panel-head">
+                  <span>Consola</span>
+                  <button class="btn btn-sm btn-ghost" id="btn-clear-console" style="padding:5px 11px; font-size:10.5px;">Limpiar</button>
+                </div>
+                <div class="console" id="console">
+                  <div class="log-info">[NovaCraft] Consola lista.</div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- ---------------------------------------------- PERFILES -->
+        <section id="page-profiles" class="page">
+          <div id="profiles-list-view">
+            <div class="page-head">
+              <div>
+                <h2 class="page-title">Perfiles</h2>
+                <p class="page-sub">Cada instancia guarda sus propios mods y mundos. Las descargas se comparten entre todas.</p>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="tabs" id="profile-view">
+                  <button class="tab-btn active" data-view="grid" title="Cuadricula">▦</button>
+                  <button class="tab-btn" data-view="list" title="Lista">☰</button>
+                </div>
+                <button class="btn btn-primary" id="btn-new-profile" data-magnet="0.22">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Crear perfil
+                </button>
+              </div>
+            </div>
+            <div class="profiles-grid" id="profiles-grid"></div>
+          </div>
+
+          <!-- Detalle de instancia -->
+          <div id="profile-detail" style="display:none;">
+            <div class="instance-head" data-spotlight>
+              <button class="btn btn-icon btn-ghost" id="btn-back" title="Volver">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div class="instance-icon" id="inst-icon">⚔️</div>
+              <div class="instance-info">
+                <div class="instance-title" id="inst-title">Perfil</div>
+                <div class="instance-sub">
+                  <span class="tag loader" id="inst-loader">FABRIC</span>
+                  <span id="inst-version">Minecraft 1.21.11</span>
+                  <span>·</span>
+                  <span id="inst-ram">4 GB</span>
+                </div>
+              </div>
+              <div style="display:flex; gap:9px;">
+                <button class="btn btn-primary" id="btn-inst-play" data-magnet="0.2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Jugar
+                </button>
+                <button class="btn btn-icon btn-ghost" id="btn-inst-folder" title="Abrir carpeta">📁</button>
+              </div>
+            </div>
+
+            <div class="tabs" id="inst-tabs" style="margin-bottom:16px;">
+              <button class="tab-btn active" data-tab="content">Contenido</button>
+              <button class="tab-btn" data-tab="logs">Registros</button>
+              <button class="tab-btn" data-tab="config">Ajustes</button>
+            </div>
+
+            <!-- Contenido -->
+            <div class="tab-panel active" id="tab-content">
+              <div class="toolbar">
+                <div class="tabs" id="content-filters">
+                  <button class="tab-btn active" data-cat="all">Todos</button>
+                  <button class="tab-btn" data-cat="mods">Mods</button>
+                  <button class="tab-btn" data-cat="resourcepacks">Texturas</button>
+                  <button class="tab-btn" data-cat="shaderpacks">Shaders</button>
+                </div>
+                <div style="display:flex; gap:9px; margin-left:auto;">
+                  <button class="btn btn-ghost btn-sm" id="btn-upload">📁 Anadir desde el PC</button>
+                  <button class="btn btn-primary btn-sm" id="btn-browse">🌐 Buscar en Modrinth</button>
+                </div>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Archivo</th>
+                      <th style="width:130px;">Categoria</th>
+                      <th style="width:100px;">Tamano</th>
+                      <th style="width:130px; text-align:right;">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="content-body"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Registros -->
+            <div class="tab-panel" id="tab-logs">
+              <div class="panel">
+                <div class="panel-head">
+                  <span>Ultimo registro del juego</span>
+                  <button class="btn btn-sm btn-ghost" id="btn-refresh-log">Actualizar</button>
+                </div>
+                <div class="console" id="inst-log" style="height:400px; white-space:pre-wrap;">Sin registros.</div>
+              </div>
+            </div>
+
+            <!-- Ajustes de la instancia -->
+            <div class="tab-panel" id="tab-config">
+              <div class="settings-group">
+                <h3>Opciones de la instancia</h3>
+                <div class="row">
+                  <div class="row-info">
+                    <div class="row-label">Memoria asignada</div>
+                    <div class="row-desc">Mas RAM no siempre es mejor: con mods, 4-8 GB suele ser el punto ideal.</div>
+                  </div>
+                  <div class="row-control">
+                    <select class="field" id="inst-cfg-ram"></select>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="row-info">
+                    <div class="row-label">Duplicar perfil</div>
+                    <div class="row-desc">Crea una copia con los mismos mods y configuracion.</div>
+                  </div>
+                  <div class="row-control">
+                    <button class="btn btn-ghost" id="btn-duplicate">Duplicar</button>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="row-info">
+                    <div class="row-label">Eliminar perfil</div>
+                    <div class="row-desc">Se borra de la lista. Puedes conservar o borrar tambien sus archivos.</div>
+                  </div>
+                  <div class="row-control">
+                    <button class="btn btn-danger btn-ghost" id="btn-delete-inst">Eliminar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------------------------------------------- VERSIONES -->
+        <section id="page-versions" class="page">
+          <div class="page-head">
+            <div>
+              <h2 class="page-title">Versiones</h2>
+              <p class="page-sub">Catalogo oficial de Mojang. NovaCraft descarga el Java correcto para cada una.</p>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <div class="search">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="version-search" placeholder="Buscar version...">
+            </div>
+            <div class="tabs" id="version-filters">
+              <button class="tab-btn active" data-type="release">Releases</button>
+              <button class="tab-btn" data-type="snapshot">Snapshots</button>
+              <button class="tab-btn" data-type="old_beta">Beta</button>
+              <button class="tab-btn" data-type="old_alpha">Alpha</button>
+            </div>
+          </div>
+
+          <div class="version-list" id="versions-list">
+            <div class="loading">Cargando versiones<span class="dots"></span></div>
+          </div>
+        </section>
+
+        <!-- ---------------------------------------------- MODS -->
+        <section id="page-mods" class="page">
+          <div class="page-head">
+            <div>
+              <h2 class="page-title">Mods y modpacks</h2>
+              <p class="page-sub">Se instalan en el perfil activo, comprobando que la version y el loader encajen.</p>
+            </div>
+            <div class="tabs" id="mod-types">
+              <button class="tab-btn active" data-type="mod">Mods</button>
+              <button class="tab-btn" data-type="modpack">Modpacks</button>
+              <button class="tab-btn" data-type="resourcepack">Texturas</button>
+              <button class="tab-btn" data-type="shader">Shaders</button>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <div class="search">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="mod-search" placeholder="Sodium, JEI, Iris...">
+            </div>
+            <select class="field" id="mod-source" style="max-width:190px;">
+              <option value="modrinth">Modrinth</option>
+              <option value="curseforge">CurseForge</option>
+            </select>
+            <select class="field" id="mod-version" style="max-width:190px;">
+              <option value="">Cualquier version</option>
+            </select>
+            <select class="field" id="mod-loader" style="max-width:170px;">
+              <option value="">Cualquier loader</option>
+              <option value="fabric">Fabric</option>
+              <option value="forge">Forge</option>
+              <option value="quilt">Quilt</option>
+              <option value="neoforge">NeoForge</option>
+            </select>
+          </div>
+
+          <div class="mods-grid" id="mods-grid">
+            <div class="loading">Cargando<span class="dots"></span></div>
+          </div>
+        </section>
+
+        <!-- ---------------------------------------------- AJUSTES -->
+        <section id="page-settings" class="page">
+          <div class="page-head">
+            <div>
+              <h2 class="page-title">Ajustes</h2>
+              <p class="page-sub">Configuracion global del launcher.</p>
+            </div>
+          </div>
+
+          <div class="settings-group" data-spotlight>
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Cuenta
+            </h3>
+            <div class="row">
+              <div class="row-info">
+                <div class="row-label">Nombre en modo offline</div>
+                <div class="row-desc">El nick que se usa cuando no hay una cuenta de Microsoft vinculada.</div>
+              </div>
+              <div class="row-control"><input type="text" class="field" id="cfg-username"></div>
+            </div>
+          </div>
+
+          <div class="settings-group" data-spotlight>
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+              Rendimiento
+            </h3>
+            <div class="row">
+              <div class="row-info">
+                <div class="row-label">Memoria por defecto</div>
+                <div class="row-desc" id="ram-hint">Se aplica a los perfiles que no tengan su propio valor.</div>
+              </div>
+              <div class="row-control"><select class="field" id="cfg-ram"></select></div>
+            </div>
+            <div class="row">
+              <div class="row-info">
+                <div class="row-label">Descargas simultaneas</div>
+                <div class="row-desc">Mas conexiones aceleran la instalacion en fibra; bajalo si tu red falla.</div>
+              </div>
+              <div class="row-control">
+                <select class="field" id="cfg-threads">
+                  <option value="8">8 conexiones</option>
+                  <option value="16">16 conexiones</option>
+                  <option value="24">24 conexiones (recomendado)</option>
+                  <option value="48">48 conexiones</option>
+                  <option value="64">64 conexiones</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="row-info">
+                <div class="row-label">Minimizar al jugar</div>
+                <div class="row-desc">Oculta el launcher cuando Minecraft termina de abrirse.</div>
+              </div>
+              <div class="row-control">
+                <label class="switch"><input type="checkbox" id="cfg-minimize"><span class="slider"></span></label>
+              </div>
+            </div>
+            <div class="row">
+              <div class="row-info">
+                <div class="row-label">Compartir mi actividad</div>
+                <div class="row-desc">Deja que tus amigos vean en que servidor estas jugando. Si lo apagas, solo veran que estas conectado.</div>
+              </div>
+              <div class="row-control">
+                <label class="switch"><input type="checkbox" id="cfg-share"><span class="slider"></span></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-group" data-spotlight>
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Java y carpetas
+            </h3>
+            <div class="row">
+              <div class="row-info">
+                <div class="row-label">Java personalizado</div>
+                <div class="row-desc" id="java-hint">Dejalo vacio y NovaCraft usara (o descargara) el Java que pida cada version.</div>
+              </div>
+              <div class="row-control">
+                <input type="text" class="field" id="cfg-java" placeholder="Automatico">
+                <button class="btn btn-ghost btn-sm" id="btn-pick-java">Elegir</button>
+              </div>
+            </div>
+            <div class="row">
+              <div class="row-info">
+                <div class="row-label">Carpeta del juego</div>
+                <div class="row-desc">Donde viven versiones, librerias, assets e instancias.</div>
+              </div>
+              <div class="row-control">
+                <input type="text" class="field" id="cfg-path" readonly>
+                <button class="btn btn-ghost btn-sm" id="btn-pick-folder">Cambiar</button>
+              </div>
+            </div>
+            <div class="row">
+              <div class="row-info">
+                <div class="row-label">API Key de CurseForge</div>
+                <div class="row-desc">Opcional. Sin ella, la busqueda usa Modrinth, que no necesita clave.</div>
+              </div>
+              <div class="row-control"><input type="password" class="field" id="cfg-cf-key" placeholder="Opcional"></div>
+            </div>
+          </div>
+
+          <div class="settings-group" data-spotlight>
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+              Actualizaciones
+            </h3>
+            <div class="row">
+              <div class="row-info">
+                <div class="row-label">Version instalada</div>
+                <div class="row-desc" id="update-detail">Comprobando...</div>
+              </div>
+              <div class="row-control">
+                <span class="tag" id="update-version">—</span>
+                <button class="btn btn-ghost btn-sm" id="btn-check-updates">Buscar ahora</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:11px; padding-bottom:20px;">
+            <button class="btn btn-primary" id="btn-save-settings" data-magnet="0.22">Guardar cambios</button>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ================================================== modal de cuenta -->
+  <div class="overlay" id="account-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Tu cuenta</h3>
+        <button class="modal-close" id="close-account">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="tabs" style="width:100%;">
+          <button class="tab-btn active" id="tab-ms" style="flex:1;">Microsoft</button>
+          <button class="tab-btn" id="tab-offline" style="flex:1;">Offline</button>
+        </div>
+
+        <div class="auth-panel active" id="panel-ms">
+          <div class="ms-box">
+            <svg width="34" height="34" viewBox="0 0 23 23"><path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/></svg>
+            <div>
+              <h4>Cuenta premium</h4>
+              <p>Inicia sesion con tu cuenta de Microsoft para jugar online. La sesion se renueva sola cuando caduca.</p>
+            </div>
+          </div>
+          <button class="btn-ms" id="btn-ms-login" style="margin-top:16px;">Iniciar sesion con Microsoft</button>
+          <div class="note" id="ms-note" style="margin-top:12px;">Se abrira la ventana oficial de Microsoft.</div>
+          <button class="btn btn-ghost btn-danger" id="btn-ms-logout" style="width:100%; margin-top:12px; display:none;">Cerrar sesion</button>
+        </div>
+
+        <div class="auth-panel" id="panel-offline">
+          <div class="form-row">
+            <label>Nombre de usuario</label>
+            <input type="text" class="field" id="offline-username" placeholder="Tu nick" maxlength="16">
+          </div>
+          <div class="note" style="margin:12px 0;">El modo offline solo funciona en servidores con <b>online-mode=false</b>.</div>
+          <button class="btn btn-primary" id="btn-save-offline" style="width:100%;">Usar cuenta offline</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================== modal de perfil -->
+  <div class="overlay" id="profile-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="profile-modal-title">Nuevo perfil</h3>
+        <button class="modal-close" id="close-profile">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>Nombre</label>
+          <input type="text" class="field" id="p-name" placeholder="Ej: Survival con mods">
+        </div>
+
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Version</label>
+            <select class="field" id="p-version"></select>
+          </div>
+          <div class="form-row">
+            <label>Modloader</label>
+            <select class="field" id="p-loader">
+              <option value="vanilla">Vanilla</option>
+              <option value="fabric" selected>Fabric</option>
+              <option value="quilt">Quilt</option>
+              <option value="forge">Forge</option>
+              <option value="neoforge">NeoForge</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Icono</label>
+            <select class="field" id="p-icon">
+              <option value="⚔️">⚔️ Espada</option>
+              <option value="🌲">🌲 Bosque</option>
+              <option value="⚡">⚡ Rayo</option>
+              <option value="💎">💎 Diamante</option>
+              <option value="🔥">🔥 Fuego</option>
+              <option value="🧪">🧪 Pocion</option>
+              <option value="🏰">🏰 Castillo</option>
+              <option value="🚀">🚀 Cohete</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Memoria</label>
+            <select class="field" id="p-ram"></select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label>Descripcion (opcional)</label>
+          <input type="text" class="field" id="p-desc" placeholder="Para que es este perfil">
+        </div>
+
+        <button class="btn btn-primary" id="btn-save-profile" style="width:100%; padding:13px;">Crear perfil</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-stack" id="toast-container"></div>
+
+  <script src="scripts/background.js"></script>
+  <script src="scripts/fx.js"></script>
+  <script src="scripts/app.js"></script>
+</body>
+</html>

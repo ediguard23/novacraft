@@ -1,0 +1,70 @@
+appId: com.novacraft.launcher
+productName: NovaCraft Launcher
+copyright: Copyright © 2026 NovaCraft
+
+directories:
+  output: dist
+  buildResources: assets
+
+# Que entra en el paquete. Todo lo demas (dist, pruebas, git) se queda fuera
+# para que el instalador no engorde.
+files:
+  - main.js
+  - preload.js
+  - package.json
+  - src/**/*
+  - assets/**/*
+  - '!**/__preview.html'
+  - '!**/__mock-api.js'
+  - '!**/*.map'
+  # OJO: estas exclusiones van SIN '**/' delante a proposito, para que solo
+  # afecten a la raiz del proyecto. Con '!**/{...,dist,...}/**' se excluia
+  # tambien node_modules/psl/dist, y psl (via tough-cookie -> request ->
+  # minecraft-launcher-core) declara su entrada en dist/psl.cjs: el launcher
+  # empaquetado moria al arrancar con "Cannot find module".
+  - '!dist/**'
+  - '!docs/**'
+  - '!.git/**'
+  - '!.github/**'
+
+asar: true
+
+# ---------------------------------------------------------------- Windows
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # OJO: assets/icon.png es en realidad un JPEG renombrado y assets/icon.ico
+  # solo mide 128x128; electron-builder exige 256x256 minimo. app-icon.png es
+  # un PNG de verdad de 512x512 generado a partir de ese mismo dibujo, y de el
+  # se derivan los iconos del .exe y del instalador.
+  icon: assets/app-icon.png
+  # Sin firma digital Windows SmartScreen avisara la primera vez. Es normal en
+  # launchers de la comunidad; se quita comprando un certificado.
+  signAndEditExecutable: true
+
+nsis:
+  # Sin espacios en el nombre: latest.yml referencia el archivo con guiones y,
+  # si el .exe del disco lleva espacios, la actualizacion da 404 al buscarlo.
+  artifactName: NovaCraft-Launcher-Setup-${version}.${ext}
+  # Instalador con asistente: deja elegir carpeta y no instala a lo bruto.
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: NovaCraft Launcher
+  # Las actualizaciones se aplican en silencio: el usuario ya dijo que si.
+  differentialPackage: true
+
+# ------------------------------------------------------------- Publicacion
+#
+# IMPORTANTE: cambia `owner` por tu usuario de GitHub antes de publicar.
+# electron-builder sube el .exe y un `latest.yml` con la version y el hash;
+# ese `latest.yml` es lo que consulta el launcher de tus amigos para saber
+# que hay algo nuevo.
+publish:
+  provider: github
+  owner: CAMBIA-ESTO-POR-TU-USUARIO
+  repo: novacraft-launcher
+  releaseType: release
