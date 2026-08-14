@@ -47,6 +47,8 @@ contextBridge.exposeInMainWorld('api', {
   deleteProfile: (opts) => ipcRenderer.invoke('delete-profile', opts),
   duplicateProfile: (profileId) => ipcRenderer.invoke('duplicate-profile', profileId),
   uploadProfileFiles: (opts) => ipcRenderer.invoke('upload-profile-files', opts),
+  pickProfileImage: (profileId) => ipcRenderer.invoke('pick-profile-image', profileId),
+  clearProfileImage: (profileId) => ipcRenderer.invoke('clear-profile-image', profileId),
   getProfileContent: (opts) => ipcRenderer.invoke('get-profile-content', opts),
   toggleProfileContent: (opts) => ipcRenderer.invoke('toggle-profile-content', opts),
   deleteProfileContent: (opts) => ipcRenderer.invoke('delete-profile-content', opts),

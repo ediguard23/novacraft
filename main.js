@@ -53,6 +53,7 @@ const mc = require('./src/core/minecraft');
 const auth = require('./src/core/auth');
 const { Presence } = require('./src/core/presence');
 const updater = require('./src/core/updater');
+const novamod = require('./src/core/novamod');
 
 /* ------------------------------------------------------------------ estado */
 
@@ -332,6 +333,58 @@ ipcMain.handle('duplicate-profile', async (e, profileId) => {
   }
 });
 
+/**
+ * Imagen del perfil. Se copia a una carpeta propia del launcher en vez de
+ * guardar la ruta original: si el usuario mueve o borra la foto, el perfil no
+ * se queda sin imagen.
+ */
+ipcMain.handle('pick-profile-image', async (e, profileId) => {
+  try {
+    const res = await dialog.showOpenDialog(mainWindow, {
+      title: 'Elige la imagen del perfil',
+      properties: ['openFile'],
+      filters: [{ name: 'Imagenes', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+    });
+    if (res.canceled || res.filePaths.length === 0) return { success: false, canceled: true };
+
+    const src = res.filePaths[0];
+    const stat = fs.statSync(src);
+    if (stat.size > 8 * 1024 * 1024) {
+      return { success: false, error: 'La imagen no puede pasar de 8 MB.' };
+    }
+
+    const dir = path.join(app.getPath('userData'), 'profile-images');
+    fs.mkdirSync(dir, { recursive: true });
+
+    // Se borra cualquier imagen anterior de este perfil, sea cual sea su extension.
+    for (const f of fs.readdirSync(dir)) {
+      if (f.startsWith(profileId + '.')) fs.rmSync(path.join(dir, f), { force: true });
+    }
+
+    const ext = path.extname(src).toLowerCase() || '.png';
+    const dest = path.join(dir, `${profileId}${ext}`);
+    fs.copyFileSync(src, dest);
+
+    return { success: true, path: dest };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('clear-profile-image', async (e, profileId) => {
+  try {
+    const dir = path.join(app.getPath('userData'), 'profile-images');
+    if (fs.existsSync(dir)) {
+      for (const f of fs.readdirSync(dir)) {
+        if (f.startsWith(profileId + '.')) fs.rmSync(path.join(dir, f), { force: true });
+      }
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('upload-profile-files', async (e, { profileId, category = 'mods' }) => {
   try {
     const res = await dialog.showOpenDialog(mainWindow, {
@@ -377,6 +430,9 @@ ipcMain.handle('get-profile-content', async (e, { profileId, category = 'all' })
           name: file.replace(/\.disabled$/, '').replace(/\.(jar|zip)$/i, ''),
           category: cat,
           enabled,
+          // El mod del menu y Fabric API son parte del cliente: la interfaz
+          // los muestra pero sin permitir tocarlos.
+          locked: novamod.isProtected(file),
           size: stat.size < 1048576
             ? (stat.size / 1024).toFixed(0) + ' KB'
             : (stat.size / 1048576).toFixed(2) + ' MB',
@@ -393,6 +449,9 @@ ipcMain.handle('get-profile-content', async (e, { profileId, category = 'all' })
 
 ipcMain.handle('toggle-profile-content', async (e, { profileId, category, filename }) => {
   try {
+    if (novamod.isProtected(filename)) {
+      return { success: false, error: 'El menu de NovaCraft es parte del cliente y no se puede desactivar.' };
+    }
     const catDir = path.join(getProfileDir(profileId), category || 'mods');
     const oldPath = path.join(catDir, filename);
     if (!fs.existsSync(oldPath)) return { success: false, error: 'El archivo ya no existe' };
@@ -410,6 +469,9 @@ ipcMain.handle('toggle-profile-content', async (e, { profileId, category, filena
 
 ipcMain.handle('delete-profile-content', async (e, { profileId, category, filename }) => {
   try {
+    if (novamod.isProtected(filename)) {
+      return { success: false, error: 'El menu de NovaCraft es parte del cliente y no se puede borrar.' };
+    }
     fs.rmSync(path.join(getProfileDir(profileId), category || 'mods', filename), { force: true });
     return { success: true };
   } catch (err) {
@@ -723,16 +785,37 @@ ipcMain.handle('launch-minecraft', async (e, launchOpts = {}) => {
     });
     logLine('status', `Java ${java.version} en uso (${java.path})`);
 
-    /* 3. Modloader del perfil */
-    let custom = null;
-    if (profile.loader && !['vanilla', 'none'].includes(String(profile.loader).toLowerCase())) {
-      status('loader', `Preparando ${profile.loader}...`, 78);
-      custom = await mc.installLoader(profile.loader, version, root, java.path, {
-        concurrency: threads,
-        cache,
-        onStatus: (msg, pct) => { status('loader', msg, pct || 80); logLine('status', msg); }
-      });
-      if (custom) logLine('status', `${custom.label} ${custom.loaderVersion} listo.`);
+    /* 3. Modloader del perfil.
+       El menu in-game de NovaCraft es parte del cliente, y un perfil vanilla no
+       puede ejecutar mods. Por eso vanilla se sube a Fabric en silencio: es lo
+       que hace Lunar con su propio cliente. */
+    let loader = String(profile.loader || 'fabric').toLowerCase();
+    if (loader === 'vanilla' || loader === 'none' || !loader) {
+      loader = 'fabric';
+      logLine('status', 'Perfil vanilla: se usa Fabric para poder cargar el menu de NovaCraft.');
+    }
+
+    status('loader', `Preparando ${loader}...`, 78);
+    const custom = await mc.installLoader(loader, version, root, java.path, {
+      concurrency: threads,
+      cache,
+      onStatus: (msg, pct) => { status('loader', msg, pct || 80); logLine('status', msg); }
+    });
+    if (custom) logLine('status', `${custom.label} ${custom.loaderVersion} listo.`);
+
+    /* 3b. Mod obligatorio: se repone en cada arranque si falta o esta alterado. */
+    try {
+      status('loader', 'Comprobando el menu in-game...', 84);
+      const modReport = await novamod.ensureInstalled(
+        gameDir, version, loader, path.join(root, 'nova-cache'),
+        (msg) => { status('loader', msg, 84); logLine('status', msg); }
+      );
+      if (modReport.installed) logLine('status', 'Menu in-game instalado (Shift derecho).');
+      else if (modReport.repaired) logLine('status', 'Menu in-game restaurado.');
+      else if (modReport.skipped) logLine('status', modReport.skipped);
+    } catch (err) {
+      // Que falle el mod no puede impedir jugar.
+      logLine('error', `No se pudo preparar el menu in-game: ${err.message}`);
     }
 
     /* 4. Sesion */

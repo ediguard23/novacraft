@@ -1,12 +1,17 @@
 'use strict';
 /**
- * NovaCraft — Fondo "Gradient Waves".
+ * NovaCraft — Fondo de cristal liquido.
  *
- * Campo de olas seno-plasma recorrido por raymarching, con niebla hacia el
- * horizonte, parallax del cursor y grano de pelicula. WebGL puro, sin librerias.
+ * Manchas de luz suaves que flotan y se mezclan sobre una base oscura, con el
+ * dominio deformado por ruido para que el movimiento sea organico y no se vea
+ * la geometria.
  *
- * Se renderiza a resolucion reducida y se escala por CSS: el efecto es suave y
- * difuso, asi que a 0.55x resulta indistinguible y cuesta un tercio de GPU.
+ * Sustituye a un raymarch de olas que, a resolucion reducida y en gris, salia
+ * turbio y con bandas. Esto es una sola pasada por pixel: se puede pintar a
+ * mayor resolucion, se ve mas limpio y cuesta bastante menos GPU.
+ *
+ * La clave para que no parezca barato es el dithering: sin el, un degradado
+ * tan suave en 8 bits por canal produce escalones visibles.
  */
 
 const VERT = `
@@ -20,125 +25,86 @@ precision highp float;
 uniform vec2  uRes;
 uniform float uTime;
 uniform vec2  uMouse;
-uniform vec3  uHorizon;
-uniform vec3  uWave;
-uniform vec3  uCrest;
+uniform vec3  uBase;
+uniform vec3  uGlow;
+uniform vec3  uTint;
 uniform float uSpeed;
-uniform float uAmplitude;
-uniform float uWaveScale;
-uniform float uWaveRatio;
-uniform float uSwell;
-uniform float uTurbulence;
-uniform float uTilt;
-uniform float uZoom;
-uniform float uHeight;
-uniform float uFogDepth;
-uniform float uBrightness;
+uniform float uIntensity;
 uniform float uParallax;
 uniform float uGrain;
 
-float hash21(vec2 p) {
-  p = fract(p * vec2(123.34, 456.21));
-  p += dot(p, p + 45.32);
+float hash(vec2 p) {
+  p = fract(p * vec2(123.34, 345.45));
+  p += dot(p, p + 34.345);
   return fract(p.x * p.y);
 }
 
-// Altura del oleaje: varias sinusoides rotadas para que no se vea la rejilla.
-float waveField(vec2 p, float t) {
-  p.x += sin(p.y * 0.08 + t * 0.25) * uSwell * 0.02;
-  p.y += cos(p.x * 0.06 - t * 0.18) * uTurbulence * 0.02;
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
+    mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
+    u.y);
+}
 
-  float h = 0.0;
-  float amp = 1.0;
-  float f = uWaveScale;
-  mat2 rot = mat2(0.80, -0.60, 0.60, 0.80);
-
-  // 3 octavas en vez de 5: a esta escala y con la niebla, las dos ultimas no
-  // se distinguen y costaban un 40% del shader.
-  for (int i = 0; i < 3; i++) {
-    h += sin(p.x * f + t * 1.10) * cos(p.y * f * uWaveRatio - t * 0.80) * amp;
-    p = rot * p;
-    f *= 1.90;
-    amp *= 0.5;
+float fbm(vec2 p) {
+  float v = 0.0;
+  float a = 0.5;
+  for (int i = 0; i < 4; i++) {
+    v += a * noise(p);
+    p *= 2.02;
+    a *= 0.5;
   }
-  return h * uAmplitude;
+  return v;
+}
+
+/** Mancha de luz suave. El borde cae con smoothstep para que no tenga filo. */
+float blob(vec2 p, vec2 c, float r) {
+  float d = length(p - c);
+  return 1.0 - smoothstep(0.0, r, d);
 }
 
 void main() {
-  vec2 uv = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
-  uv /= max(uZoom, 0.001);
-  uv += uMouse * uParallax * 0.12;
+  vec2 uv = gl_FragCoord.xy / uRes;
+  float aspect = uRes.x / uRes.y;
+  vec2 p = vec2(uv.x * aspect, uv.y);
 
   float t = uTime * uSpeed;
 
-  // Camara cabeceada hacia abajo: el horizonte queda en la mitad superior y
-  // las olas se abren hacia el espectador. Se escribe con escalares a proposito;
-  // mat2() en GLSL es por columnas y ahi es facil invertir el giro sin querer.
-  vec3 rd = normalize(vec3(uv, 1.0));
-  float ca = cos(uTilt);
-  float sa = sin(uTilt);
-  rd = normalize(vec3(rd.x, rd.y * ca - rd.z * sa, rd.y * sa + rd.z * ca));
+  // El dominio se deforma con ruido: es lo que da el aspecto liquido.
+  vec2 warp = vec2(
+    fbm(p * 1.6 + vec2(t * 0.30, t * 0.21)),
+    fbm(p * 1.6 + vec2(4.7 - t * 0.24, 2.3 + t * 0.27))
+  );
+  vec2 q = p + (warp - 0.5) * 0.55 + uMouse * uParallax * 0.05;
 
-  vec3 ro = vec3(0.0, uHeight, -t * 2.0);
+  // Manchas recorriendo trayectorias de Lissajous, sin repetirse nunca igual.
+  float light = 0.0;
+  light += blob(q, vec2(0.28 * aspect + sin(t * 0.42) * 0.22, 0.30 + cos(t * 0.35) * 0.18), 0.62);
+  light += blob(q, vec2(0.78 * aspect + cos(t * 0.31) * 0.26, 0.72 + sin(t * 0.46) * 0.16), 0.70) * 0.85;
+  light += blob(q, vec2(0.52 * aspect + sin(t * 0.27 + 2.1) * 0.30, 0.52 + cos(t * 0.38 + 1.3) * 0.24), 0.55) * 0.7;
+  light += blob(q, vec2(0.10 * aspect + cos(t * 0.5 + 4.0) * 0.18, 0.88 + sin(t * 0.29) * 0.12), 0.48) * 0.55;
 
-  vec3 color;
-  float alpha = 1.0;
+  light = clamp(light, 0.0, 1.6);
 
-  if (rd.y >= -0.001) {
-    // Por encima del horizonte: solo bruma
-    float glow = pow(max(0.0, 1.0 - rd.y * 6.0), 3.0);
-    color = mix(uHorizon * 0.35, uHorizon, glow);
-  } else {
-    float dist = -1.0;
-    float march = 0.6;
+  // Realce fino en las crestas del ruido: los reflejos del cristal.
+  float sheen = pow(fbm(q * 2.4 + t * 0.12), 3.0) * 0.5;
 
-    for (int i = 0; i < 32; i++) {
-      vec3 p = ro + rd * march;
-      float h = waveField(p.xz, t);
-      float d = p.y - h;
-      if (d < 0.015 * march) { dist = march; break; }
-      march += max(0.12, d * 0.55);
-      if (march > 70.0) break;
-    }
+  vec3 color = uBase;
+  color = mix(color, uGlow, clamp(light * uIntensity, 0.0, 1.0));
+  color += uTint * sheen * light * 0.6;
 
-    if (dist < 0.0) {
-      color = uHorizon * 0.55;
-    } else {
-      vec3 p = ro + rd * dist;
-      float h = waveField(p.xz, t);
+  // Vinetado suave: mantiene el foco en el centro sin ensuciar los bordes.
+  float vig = 1.0 - smoothstep(0.55, 1.35, length(uv - 0.5) * 1.6);
+  color *= mix(0.62, 1.0, vig);
 
-      // Las crestas mas altas reciben el color de brillo
-      float crest = smoothstep(0.15, 0.95, h / max(uAmplitude, 0.001));
-      float body  = smoothstep(-1.20, 0.60, h / max(uAmplitude, 0.001));
+  // Dithering ordenado: rompe las bandas del degradado en 8 bits.
+  float d = (hash(gl_FragCoord.xy + fract(uTime) * 17.0) - 0.5) * uGrain;
+  color += d;
 
-      color = mix(uHorizon, uWave, body);
-      color = mix(color, uCrest, crest * 0.75);
-
-      // Realce especular en el borde de cada ola
-      float slope = abs(waveField(p.xz + vec2(0.12, 0.0), t) - h) * 3.0;
-      color += uCrest * slope * 0.10;
-
-      // Todo se disuelve en la bruma del fondo
-      float fog = 1.0 - exp(-dist / max(uFogDepth, 0.001));
-      color = mix(color, uHorizon * 0.85, fog);
-      alpha = 1.0 - fog * 0.25;
-    }
-  }
-
-  color *= uBrightness;
-
-  // Vinetado: mantiene legible la interfaz encima
-  vec2 q = gl_FragCoord.xy / uRes;
-  float vig = smoothstep(1.25, 0.25, length(q - 0.5) * 1.5);
-  color *= mix(0.42, 1.0, vig);
-
-  // Grano de pelicula
-  if (uGrain > 0.0) {
-    float g = hash21(gl_FragCoord.xy + fract(uTime) * 137.0) - 0.5;
-    color += g * uGrain;
-  }
-
-  gl_FragColor = vec4(max(color, 0.0), alpha);
+  gl_FragColor = vec4(max(color, 0.0), 1.0);
 }
 `;
 
@@ -163,32 +129,18 @@ function compile (gl, type, src) {
 
 function createGradientWaves (canvas, options = {}) {
   const opts = {
-    // Grafito: bruma casi negra, cuerpo gris y crestas plata.
-    horizonColor: '#191921',
-    waveColor: '#3c3c48',
-    crestColor: '#9a9aae',
-    speed: 0.3,
-    amplitude: 0.9,
-    waveScale: 0.5,
-    waveRatio: 0.9,
-    swell: 32,
-    turbulence: 18,
-    // Cabeceo hacia abajo en radianes. Con la camara a 3.2 de altura y las
-    // crestas llegando a ~1.8, este angulo deja el horizonte arriba y las olas
-    // nitidas en la parte baja de la pantalla.
-    tilt: 0.24,
-    zoom: 1.0,
-    height: 3.2,
-    fogDepth: 22,
-    brightness: 0.92,
-    parallaxStrength: 0.5,
-    grainIntensity: 0.03,
-    // Se pinta a 0.42x y se estira por CSS: el efecto es difuso, no se nota,
-    // y cuesta cinco veces menos que a resolucion nativa.
-    renderScale: 0.42,
-    // Cada frame del fondo obliga a recalcular el desenfoque de todos los
-    // paneles de cristal encima. A 30 fps se mueve igual de bien y libera
-    // la mitad del trabajo de composicion.
+    // Base casi negra, luz plata y un realce muy tenue en frio. Sin tintes
+    // fuertes: el color lo pone el contenido, no el fondo.
+    baseColor: '#07070b',
+    glowColor: '#8d90a6',
+    tintColor: '#b9c4dd',
+    speed: 0.16,
+    intensity: 0.62,
+    parallaxStrength: 0.6,
+    grain: 0.022,
+    // La malla es barata, asi que se puede pintar casi a resolucion nativa:
+    // es justo lo que hace que no se vea pixelada ni turbia.
+    renderScale: 0.8,
     maxFps: 30,
     ...options
   };
@@ -200,7 +152,6 @@ function createGradientWaves (canvas, options = {}) {
     powerPreference: 'high-performance'
   });
 
-  // Sin WebGL el launcher sigue funcionando: el CSS ya pinta un degradado base.
   if (!gl) {
     document.body.classList.add('no-webgl');
     return { destroy () {}, setPalette () {} };
@@ -225,33 +176,22 @@ function createGradientWaves (canvas, options = {}) {
   gl.enableVertexAttribArray(aPos);
   gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
-  const u = (name) => gl.getUniformLocation(program, name);
+  const u = (n) => gl.getUniformLocation(program, n);
   const U = {
     res: u('uRes'), time: u('uTime'), mouse: u('uMouse'),
-    horizon: u('uHorizon'), wave: u('uWave'), crest: u('uCrest'),
-    speed: u('uSpeed'), amplitude: u('uAmplitude'), waveScale: u('uWaveScale'),
-    waveRatio: u('uWaveRatio'), swell: u('uSwell'), turbulence: u('uTurbulence'),
-    tilt: u('uTilt'), zoom: u('uZoom'), height: u('uHeight'), fogDepth: u('uFogDepth'),
-    brightness: u('uBrightness'), parallax: u('uParallax'), grain: u('uGrain')
+    base: u('uBase'), glow: u('uGlow'), tint: u('uTint'),
+    speed: u('uSpeed'), intensity: u('uIntensity'),
+    parallax: u('uParallax'), grain: u('uGrain')
   };
 
   function applyStatics () {
-    gl.uniform3fv(U.horizon, hexToRgb(opts.horizonColor));
-    gl.uniform3fv(U.wave, hexToRgb(opts.waveColor));
-    gl.uniform3fv(U.crest, hexToRgb(opts.crestColor));
+    gl.uniform3fv(U.base, hexToRgb(opts.baseColor));
+    gl.uniform3fv(U.glow, hexToRgb(opts.glowColor));
+    gl.uniform3fv(U.tint, hexToRgb(opts.tintColor));
     gl.uniform1f(U.speed, opts.speed);
-    gl.uniform1f(U.amplitude, opts.amplitude);
-    gl.uniform1f(U.waveScale, opts.waveScale);
-    gl.uniform1f(U.waveRatio, opts.waveRatio);
-    gl.uniform1f(U.swell, opts.swell);
-    gl.uniform1f(U.turbulence, opts.turbulence);
-    gl.uniform1f(U.tilt, opts.tilt);
-    gl.uniform1f(U.zoom, opts.zoom);
-    gl.uniform1f(U.height, opts.height);
-    gl.uniform1f(U.fogDepth, opts.fogDepth);
-    gl.uniform1f(U.brightness, opts.brightness);
+    gl.uniform1f(U.intensity, opts.intensity);
     gl.uniform1f(U.parallax, opts.parallaxStrength);
-    gl.uniform1f(U.grain, opts.grainIntensity);
+    gl.uniform1f(U.grain, opts.grain);
   }
   applyStatics();
 
@@ -271,7 +211,6 @@ function createGradientWaves (canvas, options = {}) {
   resize();
   window.addEventListener('resize', resize, { passive: true });
 
-  // El parallax persigue al cursor con suavizado, nunca salta.
   const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
   const onMove = (e) => {
     mouse.tx = (e.clientX / window.innerWidth) * 2 - 1;
@@ -291,8 +230,8 @@ function createGradientWaves (canvas, options = {}) {
     if (now - lastDraw < minDelta) return;
     lastDraw = now;
 
-    mouse.x += (mouse.tx - mouse.x) * 0.09;
-    mouse.y += (mouse.ty - mouse.y) * 0.09;
+    mouse.x += (mouse.tx - mouse.x) * 0.06;
+    mouse.y += (mouse.ty - mouse.y) * 0.06;
 
     gl.uniform1f(U.time, (now - start) / 1000);
     gl.uniform2f(U.mouse, mouse.x, mouse.y);
@@ -300,15 +239,14 @@ function createGradientWaves (canvas, options = {}) {
   }
   raf = requestAnimationFrame(frame);
 
-  // Sin ventana visible no se gasta GPU.
   const onVisibility = () => { running = !document.hidden; };
   document.addEventListener('visibilitychange', onVisibility);
 
   return {
-    setPalette ({ horizonColor, waveColor, crestColor }) {
-      if (horizonColor) opts.horizonColor = horizonColor;
-      if (waveColor) opts.waveColor = waveColor;
-      if (crestColor) opts.crestColor = crestColor;
+    setPalette ({ baseColor, glowColor, tintColor }) {
+      if (baseColor) opts.baseColor = baseColor;
+      if (glowColor) opts.glowColor = glowColor;
+      if (tintColor) opts.tintColor = tintColor;
       applyStatics();
     },
     destroy () {

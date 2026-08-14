@@ -99,7 +99,9 @@ function goTo (pageId) {
   window.fx.revealText(page);
   window.fx.scan(page);
 
-  if (pageId === 'page-profiles') renderProfiles();
+  // Al entrar en Perfiles siempre se ve el listado. Antes, si te habias
+  // quedado dentro de un perfil, al volver reaparecia esa vista de detalle.
+  if (pageId === 'page-profiles') showProfileList();
   if (pageId === 'page-versions' && allVersions.length === 0) loadVersions();
   if (pageId === 'page-mods' && !$('mods-grid').dataset.loaded) searchMods();
 }
@@ -150,10 +152,7 @@ async function loadConfig () {
 
   $('btn-ms-logout').style.display = premium ? 'block' : 'none';
 
-  const active = (config.profiles || []).find((p) => p.id === config.activeProfileId);
-  const version = active?.version || config.selectedVersion || '—';
-  $('pill-version').textContent = version;
-  $('launch-sub').textContent = active ? `${active.name} · ${version}` : `Minecraft ${version}`;
+  renderActiveProfile();
 
   // Ajustes
   $('cfg-username').value = name;
@@ -196,9 +195,56 @@ async function loadSystem () {
 
 /* ------------------------------------------------------------------ home */
 
+/** Ruta de imagen del perfil lista para usar en un <img>. */
+function imageUrl (profile) {
+  if (!profile || !profile.image) return null;
+  // file:// con las barras normalizadas; encodeURI respeta los dos puntos de
+  // la unidad y escapa espacios, que en Windows son muy comunes en las rutas.
+  return 'file:///' + encodeURI(profile.image.replace(/\\/g, '/'));
+}
+
+const activeProfile = () => (config.profiles || []).find((p) => p.id === config.activeProfileId)
+  || (config.profiles || [])[0]
+  || null;
+
+/** Pinta la pastilla del perfil activo en la portada. */
+function renderActiveProfile () {
+  const p = activeProfile();
+  const thumb = $('pill-thumb');
+  const emoji = $('pill-thumb-emoji');
+
+  if (!p) {
+    $('pill-profile').textContent = 'Sin perfiles';
+    $('pill-version').textContent = 'Crea el primero';
+    $('launch-label').textContent = 'CREAR PERFIL';
+    $('launch-sub').textContent = 'Necesitas un perfil para jugar';
+    emoji.textContent = '＋';
+    emoji.style.display = '';
+    thumb.querySelector('img')?.remove();
+    return;
+  }
+
+  $('pill-profile').textContent = p.name;
+  $('pill-version').textContent = `${p.version} · ${(p.loader || 'fabric').toUpperCase()}`;
+  if (!launching) $('launch-label').textContent = 'JUGAR';
+  $('launch-sub').textContent = `${p.name} · ${p.version}`;
+
+  const url = imageUrl(p);
+  let img = thumb.querySelector('img');
+  if (url) {
+    if (!img) { img = document.createElement('img'); thumb.appendChild(img); }
+    img.src = url;
+    emoji.style.display = 'none';
+  } else {
+    img?.remove();
+    emoji.textContent = p.icon || '⚔️';
+    emoji.style.display = '';
+  }
+}
+
 function wireHome () {
   $('btn-launch').onclick = launch;
-  $('quick-version').onclick = () => goTo('page-versions');
+  $('profile-pill').onclick = () => goTo('page-profiles');
   $('btn-repair').onclick = repair;
   $('btn-clear-console').onclick = () => {
     $('console').innerHTML = '<div class="log-info">[NovaCraft] Consola limpiada.</div>';
@@ -221,24 +267,36 @@ function setLaunching (on, label) {
   launching = on;
   const btn = $('btn-launch');
   btn.disabled = on;
-  $('launch-label').textContent = label || (on ? 'PREPARANDO' : 'JUGAR');
+
+  if (label) $('launch-label').textContent = label;
+  else if (on) $('launch-label').textContent = 'PREPARANDO';
+  else renderActiveProfile(); // devuelve el texto correcto segun haya perfil o no
+
   $('top-status').textContent = on ? 'Trabajando...' : 'Listo';
 }
 
 async function launch () {
   if (launching) return;
 
-  if (!config.activeProfileId && !(config.profiles || []).length) {
-    window.fx.toast('Crea un perfil antes de jugar.', { type: 'warn' });
+  // Sin perfiles el boton principal no lanza nada: crea el primero.
+  const profile = activeProfile();
+  if (!profile) {
     goTo('page-profiles');
+    openProfileModal();
     return;
+  }
+
+  // El perfil activo puede haber quedado apuntando a uno borrado.
+  if (config.activeProfileId !== profile.id) {
+    config.activeProfileId = profile.id;
+    await window.api.saveConfig({ activeProfileId: profile.id });
   }
 
   setLaunching(true);
   setProgress(0, 'Iniciando...');
   log('Iniciando lanzamiento...', 'status');
 
-  const result = await window.api.launchMinecraft({ profileId: config.activeProfileId });
+  const result = await window.api.launchMinecraft({ profileId: profile.id });
 
   if (!result.success) {
     setLaunching(false);
@@ -248,8 +306,9 @@ async function launch () {
 
 async function repair () {
   if (launching) return;
-  const version = $('pill-version').textContent;
-  if (!version || version === '—') return window.fx.toast('Elige una version primero.', { type: 'warn' });
+  const profile = activeProfile();
+  const version = profile ? profile.version : config.selectedVersion;
+  if (!version) return window.fx.toast('Crea un perfil primero.', { type: 'warn' });
 
   setLaunching(true, 'REPARANDO');
   setProgress(0, 'Verificando archivos...');
@@ -450,6 +509,40 @@ function wirePresence () {
  * mismo banner) para que cada instancia se reconozca de un vistazo sin
  * necesitar ningun archivo de imagen.
  */
+/* Imagen elegida en el modal, antes de que el perfil exista. */
+let pendingImage = null;
+let pendingImageId = 'nuevo';
+
+function renderImagePreview () {
+  const box = $('p-image-preview');
+  if (pendingImage) {
+    const url = 'file:///' + encodeURI(pendingImage.replace(/\\/g, '/'));
+    box.innerHTML = `<img src="${esc(url)}" alt="">`;
+    box.classList.add('has-image');
+  } else {
+    box.innerHTML = '<span>Sin imagen</span>';
+    box.classList.remove('has-image');
+  }
+}
+
+function openProfileModal () {
+  pendingImageId = 'nuevo-' + Date.now();
+  pendingImage = null;
+  $('p-name').value = '';
+  $('p-desc').value = '';
+  renderImagePreview();
+  populateVersionSelect();
+  $('profile-modal').classList.add('on');
+}
+
+/** Vuelve de la vista de detalle al listado. */
+function showProfileList () {
+  $('profile-detail').style.display = 'none';
+  $('profiles-list-view').style.display = 'block';
+  detailProfile = null;
+  renderProfiles();
+}
+
 function applyProfileView (view) {
   $('profiles-grid').classList.toggle('as-list', view === 'list');
   $$('#profile-view .tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
@@ -485,15 +578,26 @@ function renderProfiles () {
 
   grid.innerHTML = profiles.map((p) => {
     const active = p.id === config.activeProfileId;
+    const url = imageUrl(p);
+
+    // Con imagen propia se usa de portada; si no, el degradado generado.
+    const banner = url
+      ? `<div class="pcard-banner has-image"><img src="${esc(url)}" alt=""></div>`
+      : `<div class="pcard-banner" style="${bannerStyle(p.name + p.id)}">
+           <span class="pcard-watermark">${esc(p.icon || '⚔️')}</span>
+         </div>`;
+
+    const icon = url
+      ? `<div class="pcard-icon has-image"><img src="${esc(url)}" alt=""></div>`
+      : `<div class="pcard-icon">${esc(p.icon || '⚔️')}</div>`;
+
     return `
     <div class="pcard ${active ? 'active' : ''}" data-id="${esc(p.id)}" data-spotlight>
-      <div class="pcard-banner" style="${bannerStyle(p.name + p.id)}">
-        <span class="pcard-watermark">${esc(p.icon || '⚔️')}</span>
-        ${active ? '<span class="pcard-badge">ACTIVO</span>' : ''}
-      </div>
+      ${banner}
+      ${active ? '<span class="pcard-badge">ACTIVO</span>' : ''}
 
       <div class="pcard-foot">
-        <div class="pcard-icon">${esc(p.icon || '⚔️')}</div>
+        ${icon}
         <div class="pcard-meta">
           <div class="pcard-name">${esc(p.name)}</div>
           <div class="pcard-tags">
@@ -570,21 +674,28 @@ function wireProfiles () {
     };
   });
 
-  $('btn-new-profile').onclick = () => {
-    $('profile-modal').classList.add('on');
-    $('p-name').value = '';
-    $('p-desc').value = '';
-    populateVersionSelect();
-  };
+  $('btn-new-profile').onclick = openProfileModal;
   $('close-profile').onclick = () => $('profile-modal').classList.remove('on');
   $('btn-save-profile').onclick = saveProfile;
 
-  $('btn-back').onclick = () => {
-    $('profile-detail').style.display = 'none';
-    $('profiles-list-view').style.display = 'block';
-    detailProfile = null;
-    renderProfiles();
+  $('btn-pick-image').onclick = async () => {
+    // La imagen se guarda con un id temporal y se renombra al crear el perfil.
+    const res = await window.api.pickProfileImage(pendingImageId);
+    if (res.success) {
+      pendingImage = res.path;
+      renderImagePreview();
+    } else if (res.error) {
+      window.fx.toast(res.error, { type: 'error' });
+    }
   };
+
+  $('btn-clear-image').onclick = async () => {
+    await window.api.clearProfileImage(pendingImageId);
+    pendingImage = null;
+    renderImagePreview();
+  };
+
+  $('btn-back').onclick = showProfileList;
 
   $('btn-inst-play').onclick = () => detailProfile && activateAndPlay(detailProfile);
   $('btn-inst-folder').onclick = () => detailProfile && window.api.openProfileFolder(detailProfile.id);
@@ -679,14 +790,20 @@ async function saveProfile () {
   const version = $('p-version').value;
   const loader = $('p-loader').value;
 
-  if (!version) return window.fx.toast('Elige una version.', { type: 'warn' });
+  // El desplegable se llena cuando responde Mojang; si aun no ha llegado,
+  // crear el perfil dejaria una version vacia y el lanzamiento fallaria.
+  if (!version) {
+    window.fx.toast('Todavia se estan cargando las versiones. Espera un momento.', { type: 'warn' });
+    return;
+  }
 
   const profile = {
     id: 'profile-' + Date.now(),
     name,
     version,
     loader,
-    icon: $('p-icon').value,
+    icon: '⚔️',
+    image: pendingImage || null,
     ramMax: $('p-ram').value,
     desc: $('p-desc').value.trim() || `${version} · ${loader.toUpperCase()}`
   };
@@ -703,6 +820,7 @@ async function saveProfile () {
   });
 
   $('profile-modal').classList.remove('on');
+  pendingImage = null;
   window.fx.toast(`Perfil "${name}" creado.`, { type: 'success' });
   await loadConfig();
   renderProfiles();
@@ -740,13 +858,17 @@ async function loadContent () {
       <td><span class="tag">${esc(item.category)}</span></td>
       <td style="color:var(--ink-mute);">${esc(item.size)}</td>
       <td style="text-align:right;">
-        <div style="display:flex; gap:12px; justify-content:flex-end; align-items:center;">
-          <label class="switch" title="${item.enabled ? 'Desactivar' : 'Activar'}">
-            <input type="checkbox" data-toggle data-cat="${esc(item.category)}" data-file="${esc(item.filename)}" ${item.enabled ? 'checked' : ''}>
-            <span class="slider"></span>
-          </label>
-          <button class="btn btn-icon btn-ghost btn-sm" data-del data-cat="${esc(item.category)}" data-file="${esc(item.filename)}" title="Eliminar" style="width:32px;height:32px;padding:0;">🗑</button>
-        </div>
+        ${item.locked ? `
+          <span class="locked-badge" title="Forma parte del cliente de NovaCraft">Del cliente</span>
+        ` : `
+          <div style="display:flex; gap:12px; justify-content:flex-end; align-items:center;">
+            <label class="switch" title="${item.enabled ? 'Desactivar' : 'Activar'}">
+              <input type="checkbox" data-toggle data-cat="${esc(item.category)}" data-file="${esc(item.filename)}" ${item.enabled ? 'checked' : ''}>
+              <span class="slider"></span>
+            </label>
+            <button class="btn btn-icon btn-ghost btn-sm" data-del data-cat="${esc(item.category)}" data-file="${esc(item.filename)}" title="Eliminar" style="width:32px;height:32px;padding:0;">🗑</button>
+          </div>
+        `}
       </td>
     </tr>`).join('');
 
@@ -795,10 +917,7 @@ async function loadVersions () {
   }
 
   allVersions = res.versions || [];
-  if (!config.selectedVersion) {
-    config.selectedVersion = res.latestRelease;
-    $('pill-version').textContent = res.latestRelease;
-  }
+  if (!config.selectedVersion) config.selectedVersion = res.latestRelease;
 
   renderVersions();
   populateVersionSelect();
@@ -845,9 +964,9 @@ function renderVersions () {
       const version = btn.dataset.version;
       config.selectedVersion = version;
       await window.api.saveConfig({ selectedVersion: version });
-      $('pill-version').textContent = version;
-      $('launch-sub').textContent = `Minecraft ${version}`;
-      window.fx.toast(`Version ${version} seleccionada.`, { type: 'success' });
+      // Esta pagina ya no decide lo que se juega: eso lo marca el perfil.
+      // Solo fija que version viene preseleccionada al crear uno nuevo.
+      window.fx.toast(`${version} sera la version por defecto al crear perfiles.`, { type: 'success' });
       renderVersions();
     };
   });

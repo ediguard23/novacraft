@@ -6,18 +6,15 @@ que pasar un instalador a mano.
 
 ---
 
-## 1. Configurar tu usuario de GitHub (solo la primera vez)
+## 1. El repositorio tiene que ser PÚBLICO
 
-Hay **dos** sitios con el marcador `CAMBIA-ESTO-POR-TU-USUARIO`:
+El usuario `ediguard23` ya está puesto en `electron-builder.yml` (campo `owner:`)
+y en `package.json` (campo `repository.url`). No hay que tocar nada más.
 
-- `electron-builder.yml` → campo `owner:`
-- `package.json` → campo `repository.url`
-
-Cambia los dos por tu usuario real de GitHub.
-
-> El repositorio tiene que ser **público**. Si lo pones privado, los launchers
-> de tus amigos no podrán leer las actualizaciones sin un token, y ese token
-> no se puede repartir.
+> **Esto es lo que hay que arreglar si sale el error 404.** Con el repositorio
+> en privado, GitHub responde 404 a quien no tenga token, y un token no se
+> puede repartir a tus amigos. Ponlo en público desde
+> *Settings → General → abajo del todo → Change repository visibility*.
 
 ## 2. Crear el repositorio y subirlo
 

@@ -132,11 +132,12 @@
                       <span class="play-sub" id="launch-sub">Minecraft 1.21.11</span>
                     </button>
 
-                    <div class="version-pill clickable" id="quick-version" data-magnet="0.22" title="Elegir version">
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mute)" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/></svg>
+                    <div class="version-pill clickable" id="profile-pill" data-magnet="0.22" title="Cambiar de perfil">
+                      <div class="pill-thumb" id="pill-thumb"><span id="pill-thumb-emoji">⚔️</span></div>
                       <div class="version-pill-meta">
-                        <span class="version-pill-cap">Version</span>
-                        <span class="version-pill-name" id="pill-version">1.21.11</span>
+                        <span class="version-pill-cap">Perfil</span>
+                        <span class="version-pill-name" id="pill-profile">—</span>
+                        <span class="version-pill-cap" id="pill-version">—</span>
                       </div>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
                     </div>
@@ -612,33 +613,29 @@
           <div class="form-row">
             <label>Modloader</label>
             <select class="field" id="p-loader">
-              <option value="vanilla">Vanilla</option>
-              <option value="fabric" selected>Fabric</option>
-              <option value="quilt">Quilt</option>
+              <option value="fabric" selected>Fabric (con menu NovaCraft)</option>
+              <option value="quilt">Quilt (con menu NovaCraft)</option>
               <option value="forge">Forge</option>
               <option value="neoforge">NeoForge</option>
             </select>
           </div>
         </div>
 
-        <div class="form-grid">
-          <div class="form-row">
-            <label>Icono</label>
-            <select class="field" id="p-icon">
-              <option value="⚔️">⚔️ Espada</option>
-              <option value="🌲">🌲 Bosque</option>
-              <option value="⚡">⚡ Rayo</option>
-              <option value="💎">💎 Diamante</option>
-              <option value="🔥">🔥 Fuego</option>
-              <option value="🧪">🧪 Pocion</option>
-              <option value="🏰">🏰 Castillo</option>
-              <option value="🚀">🚀 Cohete</option>
-            </select>
+        <div class="form-row">
+          <label>Imagen del perfil</label>
+          <div class="image-picker">
+            <div class="image-preview" id="p-image-preview"><span>Sin imagen</span></div>
+            <div class="image-picker-actions">
+              <button class="btn btn-ghost btn-sm" id="btn-pick-image">Subir imagen</button>
+              <button class="btn btn-ghost btn-sm" id="btn-clear-image">Quitar</button>
+              <span class="image-hint">Se usa de portada. Lo ideal es apaisada, tipo 515x232.</span>
+            </div>
           </div>
-          <div class="form-row">
-            <label>Memoria</label>
-            <select class="field" id="p-ram"></select>
-          </div>
+        </div>
+
+        <div class="form-row">
+          <label>Memoria</label>
+          <select class="field" id="p-ram"></select>
         </div>
 
         <div class="form-row">

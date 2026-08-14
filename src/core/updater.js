@@ -41,6 +41,29 @@ let current = { state: STATE.IDLE, version: null, percent: 0, notes: null, error
 let timer = null;
 let notify = () => {};
 
+/**
+ * electron-updater escupe volcados enormes con cabeceras HTTP incluidas.
+ * Aqui se traducen a una frase que diga que hacer.
+ */
+function friendlyError (err) {
+  const raw = String(err && err.message ? err.message : err);
+
+  if (raw.includes('404')) {
+    return 'No se encuentra el repositorio de actualizaciones. Si lo tienes en privado, ' +
+      'ponlo en publico: un repositorio privado necesita un token y eso no se puede repartir.';
+  }
+  if (/ENOTFOUND|ENETUNREACH|EAI_AGAIN|ETIMEDOUT/.test(raw)) {
+    return 'Sin conexion a internet para comprobar actualizaciones.';
+  }
+  if (raw.includes('403')) {
+    return 'GitHub ha rechazado la peticion (403). Puede ser un limite temporal; reintenta en unos minutos.';
+  }
+  if (/sha512|checksum/i.test(raw)) {
+    return 'La descarga llego corrupta. Vuelve a intentarlo.';
+  }
+  return raw.split('\n')[0].slice(0, 160);
+}
+
 function setState (patch) {
   current = { ...current, ...patch };
   notify(current);
@@ -89,7 +112,7 @@ function initUpdater (send) {
 
   autoUpdater.on('error', (err) => {
     // Quedarse sin internet no es un fallo del launcher; se informa y ya.
-    setState({ state: STATE.ERROR, error: String(err && err.message ? err.message : err).slice(0, 300) });
+    setState({ state: STATE.ERROR, error: friendlyError(err) });
   });
 
   // Un margen al arrancar para no competir con la carga de la interfaz.
@@ -105,9 +128,7 @@ function check () {
     // capturarla o queda como unhandledRejection.
     const p = autoUpdater.checkForUpdates();
     if (p && typeof p.catch === 'function') {
-      p.catch((err) => {
-        setState({ state: STATE.ERROR, error: String(err && err.message ? err.message : err).slice(0, 300) });
-      });
+      p.catch((err) => setState({ state: STATE.ERROR, error: friendlyError(err) }));
     }
     return { success: true };
   } catch (err) {
