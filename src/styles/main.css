@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NovaCraft Launcher — Liquid Glass (grafito)
+   Flash Client — Liquid Glass (grafito)
    Cristal liquido en negro/gris translucido. Sin tintes de color.
 
    Regla de rendimiento: backdrop-filter SOLO en superficies grandes y pocas
@@ -17,23 +17,28 @@
   --bg-2: #131318;
 
   --ink: #f2f3f6;
-  --ink-dim: rgba(238, 240, 246, 0.78);
-  --ink-mute: rgba(214, 218, 230, 0.52);
-  --ink-faint: rgba(200, 205, 220, 0.34);
+  --ink-dim: rgba(244, 246, 252, 0.92);
+  --ink-mute: rgba(226, 231, 244, 0.75);
+  --ink-faint: rgba(214, 220, 236, 0.58);
 
-  /* Cristal: brillo blanco sobre una base oscura MUY ligera.
-     El oscuro es solo el necesario para separar el panel del fondo y que se
-     lea el texto; si se sube mas, deja de parecer cristal y pasa a ser un
-     rectangulo gris. La luz del fondo tiene que verse pasar por detras. */
-  --pane-bg: linear-gradient(158deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03) 52%, rgba(255, 255, 255, 0.07)), rgba(9, 9, 13, 0.4);
-  --tile-bg: linear-gradient(158deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.022) 52%, rgba(255, 255, 255, 0.05)), rgba(11, 11, 15, 0.46);
-  --tile-bg-hi: linear-gradient(158deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04) 52%, rgba(255, 255, 255, 0.08)), rgba(16, 16, 22, 0.52);
+  /* Cristal.
+     El tinte es casi transparente A PROPOSITO: lo que define el cristal es el
+     desenfoque, la refraccion y los brillos del borde, no un relleno gris.
+     Con un valor mas alto se convierte en un rectangulo oscuro, que es
+     exactamente lo que hay que evitar. El poco oscuro que hay solo sirve para
+     que el texto blanco siga leyendose sobre las zonas claras del fondo. */
+  --glass-tint: rgba(255, 255, 255, 0);
+  --glass-tint-soft: rgba(255, 255, 255, 0.02);
 
-  --edge: rgba(255, 255, 255, 0.14);
-  --edge-hi: rgba(255, 255, 255, 0.3);
-  --edge-top: rgba(255, 255, 255, 0.38);
+  /* Compatibilidad con reglas sueltas que aun piden un fondo directo */
+  --tile-bg: linear-gradient(158deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.022) 52%, rgba(255, 255, 255, 0.05)), rgba(11, 11, 15, 0.3);
+  --tile-bg-hi: linear-gradient(158deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05) 52%, rgba(255, 255, 255, 0.09)), rgba(16, 16, 22, 0.34);
 
-  --blur: 28px;
+  --edge: rgba(255, 255, 255, 0.18);
+  --edge-hi: rgba(255, 255, 255, 0.34);
+  --edge-top: rgba(255, 255, 255, 0.42);
+
+  --blur: 6px;
 
   /* Semanticos, deliberadamente apagados */
   --ok: #6ee7a8;
@@ -46,7 +51,7 @@
   --r-sm: 10px;
   --r-md: 14px;
   --r-lg: 20px;
-  --r-xl: 26px;
+  --r-xl: 28px;
   --r-pill: 999px;
 
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -61,6 +66,7 @@
 html, body { height: 100%; overflow: hidden; }
 
 body {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   font-family: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: var(--ink);
   background: var(--bg-0);
@@ -91,9 +97,9 @@ body.no-webgl::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* Apenas un velo. El fondo ya nace oscuro y con su propio vinetado; cargar
-     mas aqui apagaria la luz que hace que el cristal parezca cristal. */
-  background: linear-gradient(180deg, rgba(6, 6, 9, 0.34) 0%, rgba(6, 6, 9, 0.06) 42%, rgba(6, 6, 9, 0.44) 100%);
+  /* Casi nada de velo: cada punto de opacidad que se anade aqui es luz que se
+     le quita al cristal. Solo lo justo para asentar los bordes. */
+  background: linear-gradient(180deg, rgba(6, 6, 9, 0.2) 0%, rgba(6, 6, 9, 0) 40%, rgba(6, 6, 9, 0.3) 100%);
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -110,40 +116,136 @@ body.no-webgl::before {
    Superficies
    ========================================================================== */
 
-/* Grandes y pocas: llevan desenfoque real */
-.pane {
+/* ---------------------------------------------------------------------------
+   Cristal liquido — tres capas, y las tres hacen falta:
+
+     ::before  desenfoque del fondo + REFRACCION (filtro SVG). Lleva z-index:-1
+               porque en CSS un descendiente posicionado con z-index negativo se
+               pinta por debajo del contenido en flujo pero por encima del fondo
+               del propio elemento. Va en su propia capa a proposito: si el
+               filtro se aplicara al elemento, distorsionaria tambien el texto.
+     ::after   tinte minimo + brillo interior del borde (el canto de la lente)
+               y, si procede, el reflejo que sigue al cursor.
+     elemento  halo exterior tenue.
+
+   Lo que diferencia esto de un simple rectangulo borroso es que NO hay relleno
+   oscuro: el cristal se define por el desenfoque, la distorsion y los brillos.
+   --------------------------------------------------------------------------- */
+
+.pane,
+.dock,
+.hero,
+.panel,
+.instance-head,
+.table-wrap,
+.settings-group,
+.modal {
   position: relative;
-  background: var(--pane-bg);
-  backdrop-filter: blur(var(--blur)) saturate(155%);
-  -webkit-backdrop-filter: blur(var(--blur)) saturate(155%);
-  border: 1px solid var(--edge);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow), inset 0 1px 0 var(--edge-top);
+  isolation: isolate;
+  box-shadow: 0 0 22px -9px rgba(255, 255, 255, 0.32), var(--shadow);
 }
 
-/* Repetidas muchas veces: sin desenfoque */
-.tile {
-  position: relative;
-  background: var(--tile-bg);
-  border: 1px solid var(--edge);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.14);
-}
-
-/* Reflejo especular que sigue al cursor. La clase .lit la pone el motor de
-   efectos solo en el elemento que tiene el raton encima. */
-[data-spotlight]::after {
+.pane::before,
+.dock::before,
+.hero::before,
+.panel::before,
+.instance-head::before,
+.table-wrap::before,
+.settings-group::before,
+.modal::before {
   content: '';
   position: absolute;
   inset: 0;
+  z-index: -1;
   border-radius: inherit;
-  background: radial-gradient(300px circle at var(--mx, 50%) var(--my, 0%),
-    rgba(255, 255, 255, 0.09), transparent 62%);
+  backdrop-filter: blur(var(--blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(160%);
+  filter: url(#glass-distortion);
+  pointer-events: none;
+}
+
+.pane::after,
+.dock::after,
+.hero::after,
+.panel::after,
+.instance-head::after,
+.table-wrap::after,
+.settings-group::after,
+.modal::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--glass-tint);
+  box-shadow: inset 0 0 12px -2px rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  transition: background 0.35s var(--ease);
+}
+
+/* El contenido debe quedar por encima de las dos capas. */
+.pane > *,
+.dock > *,
+.hero > *,
+.panel > *,
+.instance-head > *,
+.table-wrap > *,
+.settings-group > *,
+.modal > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Repetidas muchas veces: mismo lenguaje pero sin refraccion, que cuesta por
+   elemento y estas pueden ser decenas. */
+.tile {
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 16px -11px rgba(255, 255, 255, 0.28), var(--shadow);
+}
+
+.tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  background: var(--glass-tint-soft);
+  box-shadow: inset 0 0 10px -3px rgba(255, 255, 255, 0.5);
+  pointer-events: none;
+}
+
+/* Reflejo que sigue al cursor. Se suma al tinte del cristal en la misma capa,
+   para no gastar un tercer pseudo-elemento. */
+[data-spotlight].lit::after {
+  background:
+    radial-gradient(320px circle at var(--mx, 50%) var(--my, 0%),
+      rgba(255, 255, 255, 0.14), transparent 62%),
+    var(--glass-tint);
+}
+
+/* Las tarjetas que no son superficie de cristal necesitan su propia capa. */
+.mod-card[data-spotlight]::after,
+.pcard[data-spotlight]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: transparent;
   opacity: 0;
   transition: opacity 0.35s var(--ease);
   pointer-events: none;
 }
-[data-spotlight].lit::after { opacity: 1; }
+.mod-card[data-spotlight].lit::after,
+.pcard[data-spotlight].lit::after {
+  opacity: 1;
+  background: radial-gradient(300px circle at var(--mx, 50%) var(--my, 0%),
+    rgba(255, 255, 255, 0.12), transparent 62%);
+}
 
 /* ==========================================================================
    Estructura
@@ -338,11 +440,13 @@ body.no-webgl::before {
 }
 .update-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--ink); }
 
-.shell { flex: 1; display: flex; gap: 14px; padding: 0 14px 14px; min-height: 0; }
+.shell {
+  position: relative; flex: 1; display: flex; gap: 14px; padding: 0 14px 14px; min-height: 0; }
 
 /* ------------------------------------------------------------------- dock */
 
 .dock {
+  z-index: 30;
   width: var(--dock-w);
   flex-shrink: 0;
   display: flex;
@@ -351,9 +455,6 @@ body.no-webgl::before {
   gap: 8px;
   padding: 14px 0;
   border-radius: var(--r-xl);
-  background: var(--pane-bg);
-  backdrop-filter: blur(var(--blur)) saturate(155%);
-  -webkit-backdrop-filter: blur(var(--blur)) saturate(155%);
   border: 1px solid var(--edge);
   box-shadow: var(--shadow), inset 0 1px 0 var(--edge-top);
   position: relative;
@@ -522,9 +623,6 @@ button { font-family: inherit; }
   border-radius: var(--r-xl);
   padding: 34px 36px 30px;
   overflow: hidden;
-  background: var(--pane-bg);
-  backdrop-filter: blur(var(--blur)) saturate(155%);
-  -webkit-backdrop-filter: blur(var(--blur)) saturate(155%);
   border: 1px solid var(--edge);
   box-shadow: var(--shadow-lg), inset 0 1px 0 var(--edge-top);
 }
@@ -701,9 +799,6 @@ button { font-family: inherit; }
 .panel {
   border-radius: var(--r-lg);
   padding: 16px;
-  background: var(--pane-bg);
-  backdrop-filter: blur(var(--blur)) saturate(155%);
-  -webkit-backdrop-filter: blur(var(--blur)) saturate(155%);
   border: 1px solid var(--edge);
   box-shadow: var(--shadow), inset 0 1px 0 var(--edge-top);
 }
@@ -1011,9 +1106,6 @@ button { font-family: inherit; }
   gap: 14px;
   padding: 18px;
   border-radius: var(--r-lg);
-  background: var(--pane-bg);
-  backdrop-filter: blur(var(--blur)) saturate(155%);
-  -webkit-backdrop-filter: blur(var(--blur)) saturate(155%);
   border: 1px solid var(--edge);
   box-shadow: var(--shadow), inset 0 1px 0 var(--edge-top);
   margin-bottom: 14px;
@@ -1073,9 +1165,6 @@ button { font-family: inherit; }
 .table-wrap {
   border-radius: var(--r-lg);
   overflow: hidden;
-  background: var(--pane-bg);
-  backdrop-filter: blur(var(--blur)) saturate(155%);
-  -webkit-backdrop-filter: blur(var(--blur)) saturate(155%);
   border: 1px solid var(--edge);
   box-shadow: var(--shadow);
 }
@@ -1250,9 +1339,6 @@ select.field option { background: #141419; color: var(--ink); }
   border-radius: var(--r-lg);
   padding: 20px;
   margin-bottom: 12px;
-  background: var(--pane-bg);
-  backdrop-filter: blur(var(--blur)) saturate(155%);
-  -webkit-backdrop-filter: blur(var(--blur)) saturate(155%);
   border: 1px solid var(--edge);
   box-shadow: var(--shadow), inset 0 1px 0 var(--edge-top);
 }
@@ -1486,3 +1572,62 @@ select.field option { background: #141419; color: var(--ink); }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================================
+   Paginador del navegador de mods
+   ========================================================================== */
+
+.mods-pager {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 18px 2px 24px;
+}
+
+.mods-pager:empty { display: none; }
+
+.pg {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 9px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ink-dim);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.2s, color 0.2s;
+}
+.pg:hover:not(:disabled):not(.active) { background: rgba(255, 255, 255, 0.15); color: #fff; }
+.pg:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.pg.active {
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.95), rgba(226, 229, 238, 0.88));
+  color: #12131a;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.pg-gap { color: var(--ink-faint); padding: 0 2px; font-size: 12px; }
+.pg-info { margin-left: auto; font-size: 11.5px; color: var(--ink-faint); }
+
+/* Logo de marca usado como icono de perfil sin imagen */
+.bolt {
+  width: 55%;
+  height: 55%;
+  color: rgba(255, 255, 255, 0.9);
+}
+.pcard-watermark .bolt { width: 92px; height: 92px; color: rgba(255, 255, 255, 0.14); }
+
+/* Iconos SVG en linea que sustituyen a los emojis */
+.ico { width: 15px; height: 15px; flex-shrink: 0; }
+.quick-chip .emoji { display: inline-flex; }
+.quick-chip .ico { width: 16px; height: 16px; }
+.file-icon .ico { width: 15px; height: 15px; }
+.empty-icon .bolt { width: 38px; height: 38px; color: rgba(255, 255, 255, 0.55); }
+.instance-icon .bolt, .pill-thumb .bolt { width: 58%; height: 58%; }

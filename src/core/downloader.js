@@ -1,6 +1,6 @@
 'use strict';
 /**
- * NovaCraft — Descargador verificado.
+ * Flash Client — Descargador verificado.
  *
  * Existe porque minecraft-launcher-core deja archivos de 0 bytes cuando una
  * descarga falla y su comprobacion de integridad esta rota:
@@ -22,7 +22,7 @@ const crypto = require('crypto');
 const agentHttps = new https.Agent({ keepAlive: true, maxSockets: 64, timeout: 30000 });
 const agentHttp = new http.Agent({ keepAlive: true, maxSockets: 64, timeout: 30000 });
 
-const USER_AGENT = 'NovaCraft-Launcher/2.0.0';
+const USER_AGENT = 'Flash-Client/2.0.0';
 
 /* ------------------------------------------------------------------ hashing */
 

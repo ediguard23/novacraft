@@ -1,6 +1,6 @@
 'use strict';
 /**
- * NovaCraft — Mod obligatorio.
+ * Flash Client — Mod obligatorio.
  *
  * El menu in-game (Shift derecho) no es opcional: forma parte del cliente. El
  * launcher lo reinstala en cada perfil antes de cada lanzamiento, asi que si
@@ -91,7 +91,7 @@ async function ensureFabricApi (modsDir, mcVersion, cacheDir, onStatus) {
 /* ------------------------------------------------------------------ mod */
 
 /**
- * Deja el perfil listo: mod de NovaCraft + Fabric API.
+ * Deja el perfil listo: mod de Flash Client + Fabric API.
  * Devuelve un informe de lo que hizo para poder contarlo en la consola.
  */
 async function ensureInstalled (gameDir, mcVersion, loader, cacheDir, onStatus) {

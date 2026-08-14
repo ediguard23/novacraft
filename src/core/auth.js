@@ -1,6 +1,6 @@
 'use strict';
 /**
- * NovaCraft — Autenticacion.
+ * Flash Client — Autenticacion.
  *
  * Dos detalles que antes rompian las cuentas premium:
  *
@@ -43,7 +43,7 @@ function httpRequest (url, method, payload, headers) {
       path: u.pathname + u.search,
       method,
       headers: {
-        'User-Agent': 'NovaCraft-Launcher/2.0.0',
+        'User-Agent': 'Flash-Client/2.0.0',
         'Content-Length': Buffer.byteLength(payload || ''),
         ...headers
       },
@@ -71,7 +71,7 @@ function httpRequest (url, method, payload, headers) {
 
 function get (url, headers = {}) {
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'NovaCraft-Launcher/2.0.0', ...headers }, timeout: 20000 }, (res) => {
+    https.get(url, { headers: { 'User-Agent': 'Flash-Client/2.0.0', ...headers }, timeout: 20000 }, (res) => {
       let data = '';
       res.on('data', (c) => { data += c; });
       res.on('end', () => {

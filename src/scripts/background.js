@@ -1,6 +1,6 @@
 'use strict';
 /**
- * NovaCraft — Fondo de cristal liquido.
+ * Flash Client — Fondo de cristal liquido.
  *
  * Manchas de luz suaves que flotan y se mezclan sobre una base oscura, con el
  * dominio deformado por ruido para que el movimiento sea organico y no se vea
@@ -82,23 +82,23 @@ void main() {
 
   // Manchas recorriendo trayectorias de Lissajous, sin repetirse nunca igual.
   float light = 0.0;
-  light += blob(q, vec2(0.28 * aspect + sin(t * 0.42) * 0.22, 0.30 + cos(t * 0.35) * 0.18), 0.62);
-  light += blob(q, vec2(0.78 * aspect + cos(t * 0.31) * 0.26, 0.72 + sin(t * 0.46) * 0.16), 0.70) * 0.85;
-  light += blob(q, vec2(0.52 * aspect + sin(t * 0.27 + 2.1) * 0.30, 0.52 + cos(t * 0.38 + 1.3) * 0.24), 0.55) * 0.7;
-  light += blob(q, vec2(0.10 * aspect + cos(t * 0.5 + 4.0) * 0.18, 0.88 + sin(t * 0.29) * 0.12), 0.48) * 0.55;
+  light += blob(q, vec2(0.28 * aspect + sin(t * 0.42) * 0.26, 0.30 + cos(t * 0.35) * 0.20), 0.40);
+  light += blob(q, vec2(0.78 * aspect + cos(t * 0.31) * 0.26, 0.72 + sin(t * 0.46) * 0.18), 0.44) * 0.9;
+  light += blob(q, vec2(0.52 * aspect + sin(t * 0.27 + 2.1) * 0.30, 0.52 + cos(t * 0.38 + 1.3) * 0.26), 0.34) * 0.8;
+  light += blob(q, vec2(0.10 * aspect + cos(t * 0.5 + 4.0) * 0.18, 0.88 + sin(t * 0.29) * 0.14), 0.30) * 0.7;
 
   light = clamp(light, 0.0, 1.6);
 
   // Realce fino en las crestas del ruido: los reflejos del cristal.
-  float sheen = pow(fbm(q * 2.4 + t * 0.12), 3.0) * 0.5;
+  float sheen = pow(fbm(q * 3.2 + t * 0.12), 2.2) * 1.15;
 
   vec3 color = uBase;
   color = mix(color, uGlow, clamp(light * uIntensity, 0.0, 1.0));
-  color += uTint * sheen * light * 0.6;
+  color += uTint * sheen * (0.35 + light * 0.65) * 0.55;
 
   // Vinetado suave: mantiene el foco en el centro sin ensuciar los bordes.
   float vig = 1.0 - smoothstep(0.55, 1.35, length(uv - 0.5) * 1.6);
-  color *= mix(0.62, 1.0, vig);
+  color *= mix(0.78, 1.0, vig);
 
   // Dithering ordenado: rompe las bandas del degradado en 8 bits.
   float d = (hash(gl_FragCoord.xy + fract(uTime) * 17.0) - 0.5) * uGrain;
@@ -129,13 +129,17 @@ function compile (gl, type, src) {
 
 function createGradientWaves (canvas, options = {}) {
   const opts = {
-    // Base casi negra, luz plata y un realce muy tenue en frio. Sin tintes
-    // fuertes: el color lo pone el contenido, no el fondo.
-    baseColor: '#07070b',
-    glowColor: '#8d90a6',
-    tintColor: '#b9c4dd',
+    // Campo de nubes de tono medio. No es negro puro a proposito: el cristal
+    // solo se percibe si hay textura y luz detras que refractar.
+    baseColor: '#2b2f3a',
+    glowColor: '#dfe3ee',
+    tintColor: '#b8c0d8',
     speed: 0.16,
-    intensity: 0.62,
+    // Sube alto a proposito. El cristal solo parece cristal si hay luz variada
+    // detras que desenfocar y refractar: sobre un fondo plano y oscuro, el
+    // desenfoque no tiene nada que hacer y el panel queda como un rectangulo
+    // gris. Este es el parametro que separa "cristal" de "caja".
+    intensity: 0.9,
     parallaxStrength: 0.6,
     grain: 0.022,
     // La malla es barata, asi que se puede pintar casi a resolucion nativa:

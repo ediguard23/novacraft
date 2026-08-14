@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('api', {
   getModrinthVersions: (id) => ipcRenderer.invoke('get-modrinth-versions', id),
   installModrinthProject: (opts) => ipcRenderer.invoke('install-modrinth-project', opts),
   searchCurseForge: (opts) => ipcRenderer.invoke('search-curseforge', opts),
+  installCurseForgeProject: (opts) => ipcRenderer.invoke('install-curseforge-project', opts),
   downloadFile: (opts) => ipcRenderer.invoke('download-file', opts),
 
   // Perfiles e instancias

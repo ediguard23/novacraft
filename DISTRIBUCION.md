@@ -19,10 +19,10 @@ y en `package.json` (campo `repository.url`). No hay que tocar nada más.
 ## 2. Crear el repositorio y subirlo
 
 Crea el repositorio en <https://github.com/new> con el nombre
-`novacraft-launcher`, **sin** README ni .gitignore (ya los tiene), y luego:
+`novacraft`, **sin** README ni .gitignore (ya los tiene), y luego:
 
 ```bash
-git remote add origin https://github.com/TU-USUARIO/novacraft-launcher.git
+git remote add origin https://github.com/TU-USUARIO/novacraft.git
 git push -u origin master
 ```
 

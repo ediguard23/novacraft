@@ -1,6 +1,6 @@
 'use strict';
 /**
- * NovaCraft — Instalacion y reparacion de versiones de Minecraft.
+ * Flash Client — Instalacion y reparacion de versiones de Minecraft.
  *
  * Todo pasa por el descargador verificado: antes de lanzar comprobamos jar de
  * cliente, librerias y assets contra el sha1/tamano oficiales de Mojang y

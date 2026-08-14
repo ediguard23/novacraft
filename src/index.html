@@ -3,11 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NovaCraft Launcher</title>
+  <title>Flash Client</title>
   <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
-  <!-- Fondo: campo de olas raymarcheado en WebGL -->
+  <!--
+    Filtro de refraccion del cristal. feTurbulence genera un ruido suave y
+    feDisplacementMap lo usa para desplazar los pixeles del fondo desenfocado:
+    eso es lo que hace que el cristal "doble" la luz en los bordes en vez de
+    parecer un simple rectangulo borroso.
+    La semilla es fija, asi que el patron no parpadea entre frames.
+  -->
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute">
+    <defs>
+      <filter id="glass-distortion" x="0%" y="0%" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.025 0.025" numOctaves="2" seed="92" result="noise"/>
+        <feGaussianBlur in="noise" stdDeviation="2" result="blurred"/>
+        <feDisplacementMap in="SourceGraphic" in2="blurred" scale="65" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+      <!-- Version suave para elementos pequenos y repetidos -->
+      <filter id="glass-distortion-soft" x="0%" y="0%" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.02 0.02" numOctaves="1" seed="47" result="n2"/>
+        <feGaussianBlur in="n2" stdDeviation="1.5" result="b2"/>
+        <feDisplacementMap in="SourceGraphic" in2="b2" scale="12" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- Fondo: campo de luz en WebGL -->
   <canvas id="bg-canvas"></canvas>
   <div class="bg-veil"></div>
 
@@ -15,7 +38,7 @@
   <div id="splash">
     <div class="splash-inner">
       <div class="splash-mark"></div>
-      <h1 class="splash-title">NovaCraft</h1>
+      <h1 class="splash-title">Flash Client</h1>
       <p class="splash-sub">Encendiendo los motores...</p>
       <div class="splash-bar"><i></i></div>
     </div>
@@ -31,7 +54,7 @@
               <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>
             </svg>
           </div>
-          <span>NovaCraft</span>
+          <span>Flash Client</span>
         </div>
 
         <div class="status-chip">
@@ -133,7 +156,7 @@
                     </button>
 
                     <div class="version-pill clickable" id="profile-pill" data-magnet="0.22" title="Cambiar de perfil">
-                      <div class="pill-thumb" id="pill-thumb"><span id="pill-thumb-emoji">⚔️</span></div>
+                      <div class="pill-thumb" id="pill-thumb"><span id="pill-thumb-emoji"><svg class="bolt" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></span></div>
                       <div class="version-pill-meta">
                         <span class="version-pill-cap">Perfil</span>
                         <span class="version-pill-name" id="pill-profile">—</span>
@@ -163,10 +186,10 @@
 
               <!-- Accesos rapidos -->
               <div class="quick-row" id="quick-row">
-                <div class="quick-chip clickable" data-goto="page-profiles"><span class="emoji">🧩</span> Mis perfiles</div>
-                <div class="quick-chip clickable" data-goto="page-mods"><span class="emoji">🌐</span> Explorar mods</div>
-                <div class="quick-chip clickable" data-goto="page-versions"><span class="emoji">📦</span> Versiones</div>
-                <div class="quick-chip clickable" id="chip-open-folder"><span class="emoji">📁</span> Abrir carpeta</div>
+                <div class="quick-chip clickable" data-goto="page-profiles"><span class="emoji"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg></span> Mis perfiles</div>
+                <div class="quick-chip clickable" data-goto="page-mods"><span class="emoji"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg></span> Explorar mods</div>
+                <div class="quick-chip clickable" data-goto="page-versions"><span class="emoji"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/></svg></span> Versiones</div>
+                <div class="quick-chip clickable" id="chip-open-folder"><span class="emoji"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span> Abrir carpeta</div>
               </div>
             </div>
 
@@ -219,7 +242,7 @@
                   <button class="btn btn-sm btn-ghost" id="btn-clear-console" style="padding:5px 11px; font-size:10.5px;">Limpiar</button>
                 </div>
                 <div class="console" id="console">
-                  <div class="log-info">[NovaCraft] Consola lista.</div>
+                  <div class="log-info">[Flash Client] Consola lista.</div>
                 </div>
               </div>
             </aside>
@@ -237,7 +260,7 @@
               <div style="display:flex; align-items:center; gap:10px;">
                 <div class="tabs" id="profile-view">
                   <button class="tab-btn active" data-view="grid" title="Cuadricula">▦</button>
-                  <button class="tab-btn" data-view="list" title="Lista">☰</button>
+                  <button class="tab-btn" data-view="list" title="Lista"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></button>
                 </div>
                 <button class="btn btn-primary" id="btn-new-profile" data-magnet="0.22">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -254,7 +277,7 @@
               <button class="btn btn-icon btn-ghost" id="btn-back" title="Volver">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="15 18 9 12 15 6"/></svg>
               </button>
-              <div class="instance-icon" id="inst-icon">⚔️</div>
+              <div class="instance-icon" id="inst-icon"><svg class="bolt" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
               <div class="instance-info">
                 <div class="instance-title" id="inst-title">Perfil</div>
                 <div class="instance-sub">
@@ -269,7 +292,7 @@
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   Jugar
                 </button>
-                <button class="btn btn-icon btn-ghost" id="btn-inst-folder" title="Abrir carpeta">📁</button>
+                <button class="btn btn-icon btn-ghost" id="btn-inst-folder" title="Abrir carpeta"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
               </div>
             </div>
 
@@ -289,8 +312,8 @@
                   <button class="tab-btn" data-cat="shaderpacks">Shaders</button>
                 </div>
                 <div style="display:flex; gap:9px; margin-left:auto;">
-                  <button class="btn btn-ghost btn-sm" id="btn-upload">📁 Anadir desde el PC</button>
-                  <button class="btn btn-primary btn-sm" id="btn-browse">🌐 Buscar en Modrinth</button>
+                  <button class="btn btn-ghost btn-sm" id="btn-upload"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Anadir desde el PC</button>
+                  <button class="btn btn-primary btn-sm" id="btn-browse"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg> Buscar mods</button>
                 </div>
               </div>
 
@@ -361,7 +384,7 @@
           <div class="page-head">
             <div>
               <h2 class="page-title">Versiones</h2>
-              <p class="page-sub">Catalogo oficial de Mojang. NovaCraft descarga el Java correcto para cada una.</p>
+              <p class="page-sub">Catalogo oficial de Mojang. Flash Client descarga el Java correcto para cada una.</p>
             </div>
           </div>
 
@@ -422,6 +445,7 @@
           <div class="mods-grid" id="mods-grid">
             <div class="loading">Cargando<span class="dots"></span></div>
           </div>
+          <div class="mods-pager" id="mods-pager"></div>
         </section>
 
         <!-- ---------------------------------------------- AJUSTES -->
@@ -502,7 +526,7 @@
             <div class="row">
               <div class="row-info">
                 <div class="row-label">Java personalizado</div>
-                <div class="row-desc" id="java-hint">Dejalo vacio y NovaCraft usara (o descargara) el Java que pida cada version.</div>
+                <div class="row-desc" id="java-hint">Dejalo vacio y Flash Client usara (o descargara) el Java que pida cada version.</div>
               </div>
               <div class="row-control">
                 <input type="text" class="field" id="cfg-java" placeholder="Automatico">
@@ -613,8 +637,8 @@
           <div class="form-row">
             <label>Modloader</label>
             <select class="field" id="p-loader">
-              <option value="fabric" selected>Fabric (con menu NovaCraft)</option>
-              <option value="quilt">Quilt (con menu NovaCraft)</option>
+              <option value="fabric" selected>Fabric (con menu Flash Client)</option>
+              <option value="quilt">Quilt (con menu Flash Client)</option>
               <option value="forge">Forge</option>
               <option value="neoforge">NeoForge</option>
             </select>

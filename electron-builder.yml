@@ -1,6 +1,6 @@
-appId: com.novacraft.launcher
-productName: NovaCraft Launcher
-copyright: Copyright © 2026 NovaCraft
+appId: com.flashclient.launcher
+productName: Flash Client
+copyright: Copyright © 2026 Flash Client
 
 directories:
   output: dist
@@ -38,7 +38,7 @@ win:
   # solo mide 128x128; electron-builder exige 256x256 minimo. app-icon.png es
   # un PNG de verdad de 512x512 generado a partir de ese mismo dibujo, y de el
   # se derivan los iconos del .exe y del instalador.
-  icon: assets/app-icon.png
+  icon: assets/logo.png
   # Sin firma digital Windows SmartScreen avisara la primera vez. Es normal en
   # launchers de la comunidad; se quita comprando un certificado.
   signAndEditExecutable: true
@@ -46,14 +46,14 @@ win:
 nsis:
   # Sin espacios en el nombre: latest.yml referencia el archivo con guiones y,
   # si el .exe del disco lleva espacios, la actualizacion da 404 al buscarlo.
-  artifactName: NovaCraft-Launcher-Setup-${version}.${ext}
+  artifactName: Flash-Client-Setup-${version}.${ext}
   # Instalador con asistente: deja elegir carpeta y no instala a lo bruto.
   oneClick: false
   allowToChangeInstallationDirectory: true
   perMachine: false
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: NovaCraft Launcher
+  shortcutName: Flash Client
   # Las actualizaciones se aplican en silencio: el usuario ya dijo que si.
   differentialPackage: true
 
@@ -66,5 +66,5 @@ nsis:
 publish:
   provider: github
   owner: ediguard23
-  repo: novacraft-launcher
+  repo: novacraft
   releaseType: release

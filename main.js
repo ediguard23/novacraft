@@ -1,6 +1,6 @@
 'use strict';
 /**
- * NovaCraft Launcher — proceso principal.
+ * Flash Client — proceso principal.
  *
  * Pipeline de lanzamiento:
  *   perfil -> instalar/verificar version -> Java correcto -> modloader -> lanzar
@@ -137,7 +137,7 @@ function createMainWindow () {
     frame: false,
     show: false,
     backgroundColor: '#05060c',
-    title: 'NovaCraft Launcher',
+    title: 'Flash Client',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -204,7 +204,7 @@ const logLine = (type, message) => send('launch-log', { type, message });
 app.whenReady().then(() => {
   // Las peticiones que salen del renderer se identifican como el launcher.
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    details.requestHeaders['User-Agent'] = 'NovaCraft-Launcher/2.0.0';
+    details.requestHeaders['User-Agent'] = 'Flash-Client/2.0.0';
     callback({ requestHeaders: details.requestHeaders });
   });
   createMainWindow();
@@ -450,7 +450,7 @@ ipcMain.handle('get-profile-content', async (e, { profileId, category = 'all' })
 ipcMain.handle('toggle-profile-content', async (e, { profileId, category, filename }) => {
   try {
     if (novamod.isProtected(filename)) {
-      return { success: false, error: 'El menu de NovaCraft es parte del cliente y no se puede desactivar.' };
+      return { success: false, error: 'El menu de Flash Client es parte del cliente y no se puede desactivar.' };
     }
     const catDir = path.join(getProfileDir(profileId), category || 'mods');
     const oldPath = path.join(catDir, filename);
@@ -470,7 +470,7 @@ ipcMain.handle('toggle-profile-content', async (e, { profileId, category, filena
 ipcMain.handle('delete-profile-content', async (e, { profileId, category, filename }) => {
   try {
     if (novamod.isProtected(filename)) {
-      return { success: false, error: 'El menu de NovaCraft es parte del cliente y no se puede borrar.' };
+      return { success: false, error: 'El menu de Flash Client es parte del cliente y no se puede borrar.' };
     }
     fs.rmSync(path.join(getProfileDir(profileId), category || 'mods', filename), { force: true });
     return { success: true };
@@ -488,7 +488,7 @@ ipcMain.handle('get-profile-log', async (e, profileId) => {
         return { success: true, log: fs.readFileSync(file, 'utf-8').slice(-60000) };
       }
     }
-    return { success: true, log: '[NovaCraft] Este perfil todavia no tiene registros. Lanza el juego una vez.' };
+    return { success: true, log: '[Flash Client] Este perfil todavia no tiene registros. Lanza el juego una vez.' };
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -654,23 +654,87 @@ ipcMain.handle('install-modrinth-project', async (e, { projectId, profileId, pro
   }
 });
 
-ipcMain.handle('search-curseforge', async (e, { query, classId, gameVersion, pageSize = 20, index = 0 } = {}) => {
-  const apiKey = (userConfig.curseForgeKey || '').trim();
-  if (!apiKey) {
-    return { success: false, needsKey: true, error: 'CurseForge requiere tu propia API Key (Configuracion).' };
-  }
+/**
+ * CurseForge.
+ *
+ * Su API oficial exige una clave de desarrollador que cada usuario tendria que
+ * sacarse. Para evitarlo se usa api.curse.tools, un proxy publico de la misma
+ * API que no pide clave y devuelve el mismo formato, incluidas las URLs de
+ * descarga. Si el usuario pone su propia clave en Ajustes, se usa la API
+ * oficial: asi no dependemos eternamente de un tercero.
+ */
+const CF_PROXY = 'https://api.curse.tools/v1';
+const CF_OFFICIAL = 'https://api.curseforge.com/v1';
+
+function cfEndpoint () {
+  const key = (userConfig.curseForgeKey || '').trim();
+  return key
+    ? { base: CF_OFFICIAL, headers: { Accept: 'application/json', 'x-api-key': key } }
+    : { base: CF_PROXY, headers: { Accept: 'application/json' } };
+}
+
+async function cfGet (pathAndQuery) {
+  const { base, headers } = cfEndpoint();
+  return fetchJson(`${base}${pathAndQuery}`, { headers });
+}
+
+ipcMain.handle('search-curseforge', async (e, { query, classId, gameVersion, loader, pageSize = 30, index = 0 } = {}) => {
   try {
-    const params = new URLSearchParams({ gameId: '432', pageSize: String(pageSize), index: String(index) });
+    const params = new URLSearchParams({
+      gameId: '432',
+      pageSize: String(Math.min(pageSize, 50)),
+      index: String(index),
+      // 2 = popularidad. Sin esto la busqueda devuelve resultados irrelevantes:
+      // "sodium" no traia ni siquiera Sodium.
+      sortField: '2',
+      sortOrder: 'desc'
+    });
     if (classId) params.set('classId', String(classId));
     if (query) params.set('searchFilter', query);
     if (gameVersion) params.set('gameVersion', gameVersion);
 
-    const res = await request(`https://api.curseforge.com/v1/mods/search?${params}`, {
-      headers: { Accept: 'application/json', 'x-api-key': apiKey }
-    });
-    const chunks = [];
-    for await (const c of res) chunks.push(c);
-    return { success: true, data: JSON.parse(Buffer.concat(chunks).toString('utf-8')) };
+    // 4=Forge 5=Cauldron 6=LiteLoader 1=Any... en CF: 1 Forge, 4 Fabric, 5 Quilt, 6 NeoForge
+    const LOADER_ID = { forge: 1, fabric: 4, quilt: 5, neoforge: 6 };
+    if (loader && LOADER_ID[loader]) params.set('modLoaderType', String(LOADER_ID[loader]));
+
+    const data = await cfGet(`/mods/search?${params}`);
+    return { success: true, data };
+  } catch (err) {
+    return { success: false, error: `CurseForge no responde (${err.message}).` };
+  }
+});
+
+/** Instala un mod de CurseForge en el perfil, eligiendo el archivo compatible. */
+ipcMain.handle('install-curseforge-project', async (e, { modId, profileId, projectType = 'mod' }) => {
+  try {
+    const profile = findProfile(profileId) || findProfile(userConfig.activeProfileId);
+    if (!profile) return { success: false, error: 'Primero crea o selecciona un perfil.' };
+
+    const res = await cfGet(`/mods/${modId}/files?pageSize=50`);
+    const files = res.data || [];
+    if (files.length === 0) return { success: false, error: 'Este proyecto no tiene archivos publicados.' };
+
+    const loader = (profile.loader || 'fabric').toLowerCase();
+    const wantsLoader = ['mod', 'modpack'].includes(projectType);
+
+    const okVersion = (f) => (f.gameVersions || []).includes(profile.version);
+    const okLoader = (f) => !wantsLoader ||
+      (f.gameVersions || []).some((v) => String(v).toLowerCase() === loader);
+
+    const match = files.find((f) => okVersion(f) && okLoader(f)) || files.find(okVersion);
+    if (!match) {
+      return { success: false, error: `No hay ninguna version compatible con Minecraft ${profile.version}.` };
+    }
+    if (!match.downloadUrl) {
+      return { success: false, error: 'CurseForge no publica la descarga directa de este archivo.' };
+    }
+
+    const subdir = projectType === 'resourcepack' ? 'resourcepacks'
+      : projectType === 'shader' ? 'shaderpacks' : 'mods';
+    const dest = path.join(getProfileDir(profile.id), subdir, match.fileName);
+    await downloadWithRetry(match.downloadUrl, dest, { size: match.fileLength });
+
+    return { success: true, filename: match.fileName, subdir, versionName: match.displayName };
   } catch (err) {
     return { success: false, error: err.message };
   }
@@ -786,13 +850,13 @@ ipcMain.handle('launch-minecraft', async (e, launchOpts = {}) => {
     logLine('status', `Java ${java.version} en uso (${java.path})`);
 
     /* 3. Modloader del perfil.
-       El menu in-game de NovaCraft es parte del cliente, y un perfil vanilla no
+       El menu in-game de Flash Client es parte del cliente, y un perfil vanilla no
        puede ejecutar mods. Por eso vanilla se sube a Fabric en silencio: es lo
        que hace Lunar con su propio cliente. */
     let loader = String(profile.loader || 'fabric').toLowerCase();
     if (loader === 'vanilla' || loader === 'none' || !loader) {
       loader = 'fabric';
-      logLine('status', 'Perfil vanilla: se usa Fabric para poder cargar el menu de NovaCraft.');
+      logLine('status', 'Perfil vanilla: se usa Fabric para poder cargar el menu de Flash Client.');
     }
 
     status('loader', `Preparando ${loader}...`, 78);

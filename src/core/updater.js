@@ -1,6 +1,6 @@
 'use strict';
 /**
- * NovaCraft — Actualizaciones automaticas.
+ * Flash Client — Actualizaciones automaticas.
  *
  * Publicas una release en GitHub y, la proxima vez que un amigo abra el
  * launcher, se la descarga solo y se instala al reiniciar. No hay que volver a

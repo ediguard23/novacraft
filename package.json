@@ -1,7 +1,7 @@
 {
   "name": "novacraft-launcher",
   "version": "2.0.0",
-  "description": "Launcher de Minecraft con verificacion de integridad, gestion automatica de Java y soporte de modloaders.",
+  "description": "Launcher de Minecraft con menu in-game, verificacion de integridad y actualizaciones automaticas.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -9,7 +9,7 @@
     "build": "electron-builder --win --publish never",
     "release": "electron-builder --win --publish always"
   },
-  "author": "NovaCraft",
+  "author": "Flash Client",
   "keywords": [
     "minecraft",
     "launcher",
@@ -20,7 +20,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ediguard23/novacraft-launcher.git"
+    "url": "https://github.com/ediguard23/novacraft.git"
   },
   "dependencies": {
     "adm-zip": "^0.5.18",

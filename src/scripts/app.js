@@ -1,6 +1,6 @@
 'use strict';
 /**
- * NovaCraft Launcher — logica de la interfaz.
+ * Flash Client — logica de la interfaz.
  *
  * Todo el texto que viene de fuera (nombres de mods, archivos, perfiles) pasa
  * por esc() antes de entrar en innerHTML: un mod llamado <img onerror=...> no
@@ -16,6 +16,13 @@ const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => (
 
 const RAM_CHOICES = [1, 2, 3, 4, 6, 8, 10, 12, 16, 24, 32];
 
+/** Logo de la marca. Es lo que lleva un perfil que no tiene imagen propia. */
+const BOLT = '<svg class="bolt" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+  '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>';
+
+/** Cuantos resultados por pagina en el navegador de mods. */
+const MODS_PER_PAGE = 30;
+
 /* ------------------------------------------------------------------ estado */
 
 let config = {};
@@ -23,6 +30,7 @@ let system = {};
 let allVersions = [];
 let versionFilter = 'release';
 let modType = 'mod';
+let modPage = 1;
 let contentFilter = 'all';
 let detailProfile = null;
 let launching = false;
@@ -177,7 +185,7 @@ async function loadSystem () {
   $('stat-java').textContent = best ? String(best.major) : 'auto';
   $('java-hint').textContent = system.javas?.length
     ? `Detectados: ${system.javas.map((j) => 'Java ' + j.major).join(', ')}. Dejalo vacio para elegir automaticamente.`
-    : 'No hay Java instalado. NovaCraft descargara el que necesite cada version.';
+    : 'No hay Java instalado. Flash Client descargara el que necesite cada version.';
 
   // La lista de RAM se acota a lo que el equipo puede dar de verdad.
   const max = Math.max(2, system.totalRamGb - 2);
@@ -237,7 +245,7 @@ function renderActiveProfile () {
     emoji.style.display = 'none';
   } else {
     img?.remove();
-    emoji.textContent = p.icon || '⚔️';
+    emoji.innerHTML = BOLT;
     emoji.style.display = '';
   }
 }
@@ -247,7 +255,7 @@ function wireHome () {
   $('profile-pill').onclick = () => goTo('page-profiles');
   $('btn-repair').onclick = repair;
   $('btn-clear-console').onclick = () => {
-    $('console').innerHTML = '<div class="log-info">[NovaCraft] Consola limpiada.</div>';
+    $('console').innerHTML = '<div class="log-info">[Flash Client] Consola limpiada.</div>';
   };
   $('chip-open-folder').onclick = () => {
     const id = config.activeProfileId || config.profiles?.[0]?.id;
@@ -569,7 +577,7 @@ function renderProfiles () {
   if (profiles.length === 0) {
     grid.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">🧩</div>
+        <div class="empty-icon"><svg class="bolt" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
         <h3>Todavia no hay perfiles</h3>
         <p>Un perfil es una instalacion independiente: su version, su modloader y sus propios mods y mundos.</p>
       </div>`;
@@ -580,16 +588,17 @@ function renderProfiles () {
     const active = p.id === config.activeProfileId;
     const url = imageUrl(p);
 
-    // Con imagen propia se usa de portada; si no, el degradado generado.
+    // Con imagen propia se usa de portada; si no, el degradado generado con el
+    // logo de marca. Nada de emojis: el perfil sin imagen lleva el rayo.
     const banner = url
       ? `<div class="pcard-banner has-image"><img src="${esc(url)}" alt=""></div>`
       : `<div class="pcard-banner" style="${bannerStyle(p.name + p.id)}">
-           <span class="pcard-watermark">${esc(p.icon || '⚔️')}</span>
+           <span class="pcard-watermark">${BOLT}</span>
          </div>`;
 
     const icon = url
       ? `<div class="pcard-icon has-image"><img src="${esc(url)}" alt=""></div>`
-      : `<div class="pcard-icon">${esc(p.icon || '⚔️')}</div>`;
+      : `<div class="pcard-icon">${BOLT}</div>`;
 
     return `
     <div class="pcard ${active ? 'active' : ''}" data-id="${esc(p.id)}" data-spotlight>
@@ -652,7 +661,7 @@ function openDetail (profile) {
   $('profiles-list-view').style.display = 'none';
   $('profile-detail').style.display = 'block';
 
-  $('inst-icon').textContent = profile.icon || '⚔️';
+  $('inst-icon').innerHTML = BOLT;
   $('inst-title').textContent = profile.name;
   $('inst-loader').textContent = (profile.loader || 'vanilla').toUpperCase();
   $('inst-version').textContent = `Minecraft ${profile.version}`;
@@ -802,7 +811,6 @@ async function saveProfile () {
     name,
     version,
     loader,
-    icon: '⚔️',
     image: pendingImage || null,
     ramMax: $('p-ram').value,
     desc: $('p-desc').value.trim() || `${version} · ${loader.toUpperCase()}`
@@ -842,13 +850,13 @@ async function loadContent () {
     return;
   }
 
-  const icons = { mods: '🧩', resourcepacks: '🎨', shaderpacks: '✨' };
+  const icons = { mods: "<svg class=\"ico\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 7h3a2 2 0 0 0 2-2V4a2 2 0 1 1 4 0v1a2 2 0 0 0 2 2h3v3a2 2 0 0 1-2 2h-1a2 2 0 1 0 0 4h1a2 2 0 0 1 2 2v3h-3a2 2 0 0 1-2-2v-1a2 2 0 1 0-4 0v1a2 2 0 0 1-2 2H4z\"/></svg>", resourcepacks: "<svg class=\"ico\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><circle cx=\"8.5\" cy=\"10\" r=\"1\"/><circle cx=\"15.5\" cy=\"10\" r=\"1\"/><circle cx=\"12\" cy=\"15\" r=\"1\"/></svg>", shaderpacks: "<svg class=\"ico\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z\"/></svg>" };
 
   body.innerHTML = res.items.map((item) => `
     <tr>
       <td>
         <div class="file-cell">
-          <div class="file-icon">${icons[item.category] || '📦'}</div>
+          <div class="file-icon">${icons[item.category] || "<svg class=\"ico\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z\"/><polyline points=\"3.27 6.96 12 12.01 20.73 6.96\"/></svg>"}</div>
           <div style="min-width:0;">
             <div class="file-name">${esc(item.name)}</div>
             <div class="file-sub">${esc(item.filename)}</div>
@@ -859,14 +867,14 @@ async function loadContent () {
       <td style="color:var(--ink-mute);">${esc(item.size)}</td>
       <td style="text-align:right;">
         ${item.locked ? `
-          <span class="locked-badge" title="Forma parte del cliente de NovaCraft">Del cliente</span>
+          <span class="locked-badge" title="Forma parte del cliente de Flash Client">Del cliente</span>
         ` : `
           <div style="display:flex; gap:12px; justify-content:flex-end; align-items:center;">
             <label class="switch" title="${item.enabled ? 'Desactivar' : 'Activar'}">
               <input type="checkbox" data-toggle data-cat="${esc(item.category)}" data-file="${esc(item.filename)}" ${item.enabled ? 'checked' : ''}>
               <span class="slider"></span>
             </label>
-            <button class="btn btn-icon btn-ghost btn-sm" data-del data-cat="${esc(item.category)}" data-file="${esc(item.filename)}" title="Eliminar" style="width:32px;height:32px;padding:0;">🗑</button>
+            <button class="btn btn-icon btn-ghost btn-sm" data-del data-cat="${esc(item.category)}" data-file="${esc(item.filename)}" title="Eliminar" style="width:32px;height:32px;padding:0;"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
           </div>
         `}
       </td>
@@ -992,58 +1000,107 @@ function wireMods () {
       $$('#mod-types .tab-btn').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       modType = btn.dataset.type;
-      searchMods();
+      searchMods(1);
     };
   });
 
   $('mod-search').oninput = () => {
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(searchMods, 380);
+    searchTimer = setTimeout(() => searchMods(1), 380);
   };
-  $('mod-source').onchange = searchMods;
-  $('mod-version').onchange = searchMods;
-  $('mod-loader').onchange = searchMods;
+  $('mod-source').onchange = () => searchMods(1);
+  $('mod-version').onchange = () => searchMods(1);
+  $('mod-loader').onchange = () => searchMods(1);
 }
 
-async function searchMods () {
+/** Clases de CurseForge por tipo de contenido. */
+const CF_CLASS = { mod: 6, modpack: 4471, resourcepack: 12, shader: 6552 };
+
+async function searchMods (page = 1) {
   const grid = $('mods-grid');
   grid.dataset.loaded = '1';
   grid.innerHTML = '<div class="loading">Buscando<span class="dots"></span></div>';
+
+  modPage = Math.max(1, page);
+  const offset = (modPage - 1) * MODS_PER_PAGE;
 
   const query = $('mod-search').value.trim();
   const version = $('mod-version').value;
   const loader = $('mod-loader').value;
   const source = $('mod-source').value;
+  const noLoader = ['resourcepack', 'shader'].includes(modType);
 
   if (source === 'curseforge') {
     const res = await window.api.searchCurseForge({
-      query, gameVersion: version, classId: modType === 'modpack' ? 4471 : 6
+      query,
+      gameVersion: version,
+      loader: noLoader ? '' : loader,
+      classId: CF_CLASS[modType] || 6,
+      pageSize: MODS_PER_PAGE,
+      index: offset
     });
-    if (res.success && res.data?.data?.length) return renderCurseForge(res.data.data);
 
-    grid.innerHTML = `
-      <div class="hint">
-        <span style="font-size:19px;">💡</span>
-        <div>
-          <div class="hint-title">Mostrando resultados de Modrinth</div>
-          <div class="hint-desc">${esc(res.error || 'CurseForge necesita una API Key propia.')} Modrinth no requiere clave.</div>
-        </div>
-      </div>`;
+    if (res.success && res.data) {
+      renderCurseForge(res.data.data || []);
+      renderPager(res.data.pagination ? res.data.pagination.totalCount : 0);
+      return;
+    }
+    grid.innerHTML = `<div class="muted-box">${esc(res.error || 'CurseForge no responde.')}</div>`;
+    renderPager(0);
+    return;
   }
 
   const res = await window.api.searchModrinth({
     query,
     projectType: modType,
     version,
-    loader: ['resourcepack', 'shader'].includes(modType) ? '' : loader,
-    limit: 30
+    loader: noLoader ? '' : loader,
+    limit: MODS_PER_PAGE,
+    offset
   });
 
   if (!res.success) {
     grid.innerHTML = `<div class="muted-box">Error al conectar con Modrinth: ${esc(res.error)}</div>`;
+    renderPager(0);
     return;
   }
-  renderModrinth(res.data.hits || [], source === 'curseforge');
+  renderModrinth(res.data.hits || []);
+  renderPager(res.data.total_hits || 0);
+}
+
+/**
+ * Paginador. Muestra una ventana de 5 numeros alrededor de la pagina actual
+ * en vez de todas: con 8.000 resultados serian 300 botones.
+ */
+function renderPager (total) {
+  const box = $('mods-pager');
+  if (!box) return;
+
+  const pages = Math.ceil(total / MODS_PER_PAGE);
+  if (pages <= 1) { box.innerHTML = ''; return; }
+
+  const from = Math.max(1, Math.min(modPage - 2, pages - 4));
+  const to = Math.min(pages, from + 4);
+
+  let html = `<button class="pg" data-page="${modPage - 1}" ${modPage === 1 ? 'disabled' : ''}>‹</button>`;
+  if (from > 1) html += `<button class="pg" data-page="1">1</button><span class="pg-gap">…</span>`;
+  for (let i = from; i <= to; i++) {
+    html += `<button class="pg ${i === modPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+  }
+  if (to < pages) html += `<span class="pg-gap">…</span><button class="pg" data-page="${pages}">${pages}</button>`;
+  html += `<button class="pg" data-page="${modPage + 1}" ${modPage === pages ? 'disabled' : ''}>›</button>`;
+  html += `<span class="pg-info">${total.toLocaleString('es-ES')} resultados</span>`;
+
+  box.innerHTML = html;
+  box.querySelectorAll('.pg[data-page]').forEach((b) => {
+    b.onclick = () => {
+      const p = parseInt(b.dataset.page, 10);
+      if (p >= 1 && p <= pages && p !== modPage) {
+        searchMods(p);
+        document.querySelector('.content').scrollTop = 0;
+      }
+    };
+  });
 }
 
 const fmtDownloads = (n) => !n ? '0'
@@ -1120,13 +1177,37 @@ function renderCurseForge (mods) {
         <p class="mod-desc">${esc(item.summary || '')}</p>
         <div class="mod-foot">
           <span class="mod-dl">↓ ${fmtDownloads(item.downloadCount)}</span>
-          <button class="btn btn-ghost btn-sm" data-cf="${esc(item.links?.websiteUrl || '')}">Ver</button>
+          <button class="btn btn-primary btn-sm" data-cf-install="${item.id}" data-title="${esc(item.name)}">Instalar</button>
         </div>
       </div>
     </div>`).join('');
 
-  grid.querySelectorAll('[data-cf]').forEach((btn) => {
-    btn.onclick = () => btn.dataset.cf && window.api.openExternal(btn.dataset.cf);
+  grid.querySelectorAll('[data-cf-install]').forEach((btn) => {
+    btn.onclick = async () => {
+      if (!config.activeProfileId) {
+        window.fx.toast('Selecciona un perfil antes de instalar.', { type: 'warn' });
+        return;
+      }
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Instalando...';
+
+      const res = await window.api.installCurseForgeProject({
+        modId: btn.dataset.cfInstall,
+        profileId: config.activeProfileId,
+        projectType: modType
+      });
+
+      if (res.success) {
+        btn.textContent = 'Instalado';
+        window.fx.toast(btn.dataset.title + ' instalado.', { type: 'success' });
+        log('Instalado ' + res.filename + ' en ' + res.subdir, 'status');
+      } else {
+        btn.disabled = false;
+        btn.textContent = original;
+        window.fx.toast(res.error, { type: 'error', duration: 7000 });
+      }
+    };
   });
   window.fx.scan(grid);
 }

@@ -1,6 +1,6 @@
 'use strict';
 /**
- * NovaCraft — Motor de interacciones (v2, reescrito por rendimiento).
+ * Flash Client — Motor de interacciones (v2, reescrito por rendimiento).
  *
  * La version anterior mantenia un requestAnimationFrame permanente que leia
  * getBoundingClientRect() de TODOS los elementos registrados en cada frame. En

@@ -1,6 +1,6 @@
 'use strict';
 /**
- * NovaCraft — Gestor de runtimes de Java.
+ * Flash Client — Gestor de runtimes de Java.
  *
  * Cada version de Minecraft declara el Java que necesita en su JSON
  * (javaVersion.majorVersion): 1.16 pide Java 8, 1.20.4 pide 17, 1.21.x pide 21,

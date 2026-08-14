@@ -1,6 +1,6 @@
 'use strict';
 /**
- * NovaCraft — Presencia del jugador.
+ * Flash Client — Presencia del jugador.
  *
  * Lunar Client sabe en que servidor estas porque su cliente ES un mod dentro
  * del juego. Aqui no hace falta: el propio cliente de Minecraft escribe en su
