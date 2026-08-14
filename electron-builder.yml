@@ -65,6 +65,6 @@ nsis:
 # que hay algo nuevo.
 publish:
   provider: github
-  owner: CAMBIA-ESTO-POR-TU-USUARIO
+  owner: xgdier_
   repo: novacraft-launcher
   releaseType: release
