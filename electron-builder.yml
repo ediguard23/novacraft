@@ -66,5 +66,5 @@ nsis:
 publish:
   provider: github
   owner: ediguard23
-  repo: novacraft
+  repo: FlashClient
   releaseType: release

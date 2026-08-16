@@ -1935,10 +1935,18 @@ select.field option { background: #141419; color: var(--ink); }
   backface-visibility: hidden;
 }
 
-/* Colocacion de las partes. El origen (0,0) del modelo es el centro del
-   torso; de ahi cuelga todo lo demas. PX = 7 en skin3d.js. */
-.sk-head   { transform: translate3d(-28px, -126px, 0); }
-.sk-hat    { transform: translate3d(-31.5px, -129.5px, 0); }
+/* Colocacion de las partes. PX = 7 en skin3d.js, o sea 1 texel = 7 px.
+   El origen (0,0) es el CENTRO del torso, asi que el torso ocupa +-6 texeles
+   (=+-42px) y todo lo demas se cuelga de sus bordes:
+
+     cabeza  8 texeles de alto -> de -14 a -6 texeles  -> top -98px
+     torso  12 texeles         -> de  -6 a +6          -> top -42px
+     piernas 12 texeles        -> de  +6 a +18         -> top  42px
+
+   El casco es una caja de 9 texeles (medio texel mas por lado), asi que se
+   desplaza 3.5px arriba y a la izquierda para quedar centrado sobre la cabeza. */
+.sk-head   { transform: translate3d(-28px, -98px, 0); }
+.sk-hat    { transform: translate3d(-31.5px, -101.5px, 0); }
 .sk-body   { transform: translate3d(-28px, -42px, 0); }
 .sk-arm-r  { transform: translate3d(-56px, -42px, 0); }
 .sk-arm-l  { transform: translate3d(28px, -42px, 0); }

@@ -20,7 +20,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ediguard23/novacraft.git"
+    "url": "https://github.com/ediguard23/FlashClient.git"
   },
   "dependencies": {
     "adm-zip": "^0.5.18",

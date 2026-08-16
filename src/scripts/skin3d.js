@@ -185,7 +185,10 @@ function createSkinViewer (host) {
       for (const p of parts) {
         const box = buildBox(p.uv, p.w, p.h, p.d, url);
         box.classList.add(p.cls);
-        if (p.cls === 'sk-arm-r') box.style.marginLeft = `${-(4 - armW) * PX}px`;
+        // El brazo derecho se ancla por su borde izquierdo (x = -56px), asi que
+        // con el modelo slim (3 texeles en vez de 4) queda un hueco de 1 texel
+        // contra el torso. Se empuja hacia DENTRO, no hacia fuera.
+        if (p.cls === 'sk-arm-r') box.style.marginLeft = `${(4 - armW) * PX}px`;
         model.appendChild(box);
       }
     },
