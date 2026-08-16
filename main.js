@@ -52,6 +52,7 @@ const { ensureJava, scanInstalled, requiredMajorFor } = require('./src/core/java
 const mc = require('./src/core/minecraft');
 const auth = require('./src/core/auth');
 const { Presence } = require('./src/core/presence');
+const skins = require('./src/core/skins');
 const updater = require('./src/core/updater');
 const novamod = require('./src/core/novamod');
 
@@ -1038,6 +1039,81 @@ ipcMain.handle('launch-minecraft', async (e, launchOpts = {}) => {
   } catch (err) {
     console.error('[Launch] Error:', err);
     return fail(err.message || 'Error desconocido al lanzar Minecraft.');
+  }
+});
+
+
+/* ------------------------------------------------------------- ipc skins */
+
+/**
+ * La skin solo se puede consultar y cambiar con cuenta de Microsoft: una
+ * cuenta offline no tiene perfil en Mojang.
+ */
+function requireMsaToken () {
+  if (userConfig.accountType !== 'microsoft' || !userConfig.msaAuth?.access_token) {
+    return null;
+  }
+  return userConfig.msaAuth.access_token;
+}
+
+ipcMain.handle('get-skin', async () => {
+  const token = requireMsaToken();
+  if (!token) {
+    // Sin cuenta premium se muestra igualmente una skin, la del nick.
+    return {
+      success: false,
+      reason: 'offline',
+      skinUrl: `https://mc-heads.net/skin/${encodeURIComponent(userConfig.username || 'Steve')}`,
+      slim: false
+    };
+  }
+  try {
+    if (auth.isExpired(userConfig.msaAuth) && userConfig.msaAuth.refresh_token) {
+      const msa = await auth.refreshSession(userConfig.msaAuth.refresh_token);
+      saveConfig({ msaAuth: msa, username: msa.name });
+    }
+    const p = await skins.getProfile(userConfig.msaAuth.access_token);
+    return { success: true, ...p };
+  } catch (err) {
+    return {
+      success: false,
+      reason: 'error',
+      error: err.message,
+      skinUrl: `https://mc-heads.net/skin/${encodeURIComponent(userConfig.username || 'Steve')}`,
+      slim: false
+    };
+  }
+});
+
+ipcMain.handle('pick-and-upload-skin', async (e, variant = 'classic') => {
+  const token = requireMsaToken();
+  if (!token) {
+    return { success: false, error: 'Cambiar la skin necesita una cuenta de Microsoft.' };
+  }
+
+  const res = await dialog.showOpenDialog(mainWindow, {
+    title: 'Elige tu skin (PNG de 64x64)',
+    properties: ['openFile'],
+    filters: [{ name: 'Skin de Minecraft', extensions: ['png'] }]
+  });
+  if (res.canceled || res.filePaths.length === 0) return { success: false, canceled: true };
+
+  try {
+    const profile = await skins.uploadSkin(token, res.filePaths[0], variant);
+    return { success: true, ...profile };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('reset-skin', async () => {
+  const token = requireMsaToken();
+  if (!token) return { success: false, error: 'Necesita una cuenta de Microsoft.' };
+  try {
+    const profile = await skins.resetSkin(token);
+    return { success: true, ...profile };
+  } catch (err) {
+    return { success: false, error: err.message };
   }
 });
 

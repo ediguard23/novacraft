@@ -1631,3 +1631,365 @@ select.field option { background: #141419; color: var(--ink); }
 .file-icon .ico { width: 15px; height: 15px; }
 .empty-icon .bolt { width: 38px; height: 38px; color: rgba(255, 255, 255, 0.55); }
 .instance-icon .bolt, .pill-thumb .bolt { width: 58%; height: 58%; }
+
+/* ==========================================================================
+   Biblioteca de perfiles (modelo Lunar Client)
+
+   Rejilla densa de tarjetas cuadradas con el nombre DEBAJO, no encima, y un
+   panel lateral con los datos del perfil seleccionado. La seleccion se marca
+   con un borde de color, no cambiando el tamano: asi la rejilla no "salta".
+   ========================================================================== */
+
+.lib-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.lib-search { flex: 1; min-width: 200px; max-width: 460px; }
+.lib-sort { max-width: 160px; }
+
+.lib-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 248px;
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 1120px) {
+  .lib-layout { grid-template-columns: minmax(0, 1fr); }
+  .lib-side { display: none; }
+}
+
+.lib-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 16px 14px;
+}
+
+/* ------------------------------------------------------------- tarjeta */
+
+.lib-card { cursor: pointer; }
+
+.lib-cover {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: linear-gradient(var(--ang, 145deg), var(--b1, #262a33), var(--b2, #14161c));
+  border: 2px solid transparent;
+  box-shadow: var(--shadow);
+  transition: border-color 0.22s, transform 0.28s var(--ease), box-shadow 0.3s;
+}
+.lib-card:hover .lib-cover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.lib-card.active .lib-cover { border-color: var(--ok); }
+
+.lib-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Sin imagen: el logo de marca, muy tenue, centrado */
+.lib-cover .bolt {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 44%;
+  height: 44%;
+  color: rgba(255, 255, 255, 0.16);
+}
+
+/* Velo + play al pasar el raton */
+.lib-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 7, 10, 0.5);
+  opacity: 0;
+  transition: opacity 0.22s;
+}
+.lib-card:hover .lib-cover::after { opacity: 1; }
+
+.lib-play {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--ok);
+  color: #06210f;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.82);
+  transition: opacity 0.22s, transform 0.3s var(--spring);
+  z-index: 2;
+  box-shadow: 0 8px 22px -6px rgba(110, 231, 168, 0.7);
+}
+.lib-card:hover .lib-play { opacity: 1; transform: scale(1); }
+.lib-play:hover { transform: scale(1.08); }
+
+/* Pie: nombre + cabeza del jugador, como en la referencia */
+.lib-foot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 9px;
+  padding: 0 2px;
+}
+
+.lib-name {
+  font-size: 12.5px;
+  font-weight: 640;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.lib-head {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.lib-badge {
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--ok);
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------------------- panel lateral */
+
+.lib-side { position: sticky; top: 0; }
+
+.lib-side-inner {
+  border-radius: var(--r-xl);
+  padding: 16px;
+  position: relative;
+  isolation: isolate;
+  border: 1px solid var(--edge);
+  box-shadow: 0 0 22px -9px rgba(255, 255, 255, 0.32), var(--shadow);
+}
+.lib-side-inner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  backdrop-filter: blur(var(--blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(160%);
+  filter: url(#glass-distortion);
+  pointer-events: none;
+}
+.lib-side-inner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 12px -2px rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+}
+.lib-side-inner > * { position: relative; z-index: 1; }
+
+.lib-side-cover {
+  aspect-ratio: 1 / 1;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: linear-gradient(145deg, #262a33, #14161c);
+  margin-bottom: 12px;
+  display: grid;
+  place-items: center;
+}
+.lib-side-cover img { width: 100%; height: 100%; object-fit: cover; }
+.lib-side-cover .bolt { width: 38%; height: 38%; color: rgba(255, 255, 255, 0.18); }
+
+.lib-side-name {
+  font-size: 15px;
+  font-weight: 720;
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lib-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+.lib-key { font-size: 11.5px; color: var(--ink-faint); font-weight: 600; }
+
+.lib-isolated {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 9px 11px;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 11.5px;
+  color: var(--ink-mute);
+  font-weight: 600;
+}
+
+.lib-side-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+.btn-play-side {
+  flex: 1;
+  border: none;
+  border-radius: var(--r-sm);
+  background: linear-gradient(160deg, #7ff0b8, var(--ok));
+  color: #06210f;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 740;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 14px;
+  position: relative;
+  overflow: hidden;
+  text-shadow: none;
+  box-shadow: 0 10px 26px -12px rgba(110, 231, 168, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: box-shadow 0.28s, filter 0.22s;
+}
+.btn-play-side:hover { filter: brightness(1.06); box-shadow: 0 14px 32px -12px rgba(110, 231, 168, 1), inset 0 1px 0 rgba(255, 255, 255, 0.75); }
+.btn-play-side:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.lib-empty {
+  grid-column: 1 / -1;
+  padding: 48px 24px;
+  text-align: center;
+  border-radius: var(--r-xl);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+}
+
+/* ==========================================================================
+   Visor de skin en 3D
+
+   Cada parte del cuerpo es una caja de seis caras con transformaciones CSS.
+   preserve-3d en toda la cadena es obligatorio: si un solo nivel lo pierde,
+   los hijos se aplastan a 2D y el modelo se ve plano.
+   ========================================================================== */
+
+.sk-host {
+  position: relative;
+  height: 250px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.sk-host.dragging { cursor: grabbing; }
+
+.sk-stage {
+  perspective: 900px;
+  perspective-origin: 50% 42%;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.sk-model {
+  position: relative;
+  transform-style: preserve-3d;
+  width: 0;
+  height: 0;
+  will-change: transform;
+}
+
+.sk-box {
+  position: absolute;
+  transform-style: preserve-3d;
+  left: 0;
+  top: 0;
+}
+
+.sk-face {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background-repeat: no-repeat;
+  /* Sin esto la textura de 64x64 se interpola y la skin sale borrosa */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  backface-visibility: hidden;
+}
+
+/* Colocacion de las partes. El origen (0,0) del modelo es el centro del
+   torso; de ahi cuelga todo lo demas. PX = 7 en skin3d.js. */
+.sk-head   { transform: translate3d(-28px, -126px, 0); }
+.sk-hat    { transform: translate3d(-31.5px, -129.5px, 0); }
+.sk-body   { transform: translate3d(-28px, -42px, 0); }
+.sk-arm-r  { transform: translate3d(-56px, -42px, 0); }
+.sk-arm-l  { transform: translate3d(28px, -42px, 0); }
+.sk-leg-r  { transform: translate3d(-28px, 42px, 0); }
+.sk-leg-l  { transform: translate3d(0, 42px, 0); }
+
+/* La capa exterior (sombrero/chaqueta) suele traer pixeles transparentes;
+   se separa un pelo para que no pelee con la capa de debajo por el z-buffer */
+.sk-hat .sk-face { opacity: 0.999; }
+
+/* ------------------------------------------------------- panel de la skin */
+
+.skin-panel { display: flex; flex-direction: column; }
+
+.skin-actions { display: flex; gap: 8px; margin-top: 10px; }
+.skin-actions .btn { flex: 1; }
+
+.skin-variant {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 10px;
+}
+.skin-variant button {
+  flex: 1;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-faint);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 640;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: color 0.2s, background 0.25s;
+}
+.skin-variant button.active {
+  color: #0b0b0f;
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.95), rgba(226, 229, 238, 0.88));
+  text-shadow: none;
+}
+
+.skin-hint {
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  text-align: center;
+  margin-top: 8px;
+  line-height: 1.5;
+}

@@ -217,6 +217,28 @@
                 </div>
               </div>
 
+              <div class="panel skin-panel" data-spotlight>
+                <div class="panel-head">
+                  <span>Tu skin</span>
+                  <span id="skin-variant-tag" style="font-weight:600; letter-spacing:0;">—</span>
+                </div>
+
+                <!-- Modelo 3D: se arrastra para girarlo, doble clic lo recentra -->
+                <div id="skin-viewer"></div>
+
+                <div class="skin-variant" id="skin-variant">
+                  <button data-variant="classic" class="active">Clasico</button>
+                  <button data-variant="slim">Slim</button>
+                </div>
+
+                <div class="skin-actions">
+                  <button class="btn btn-primary btn-sm" id="btn-change-skin">Cambiar skin</button>
+                  <button class="btn btn-ghost btn-sm" id="btn-reset-skin" title="Volver a la skin por defecto">Quitar</button>
+                </div>
+
+                <div class="skin-hint" id="skin-hint">Arrastra para girar · doble clic para centrar</div>
+              </div>
+
               <div class="panel" data-spotlight>
                 <div class="panel-head">
                   <span>Amigos</span>
@@ -252,23 +274,64 @@
         <!-- ---------------------------------------------- PERFILES -->
         <section id="page-profiles" class="page">
           <div id="profiles-list-view">
-            <div class="page-head">
-              <div>
-                <h2 class="page-title">Perfiles</h2>
-                <p class="page-sub">Cada instancia guarda sus propios mods y mundos. Las descargas se comparten entre todas.</p>
+            <!-- Barra al estilo Lunar: buscador, orden y crear -->
+            <div class="lib-bar">
+              <div class="search lib-search">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="profile-search" placeholder="Buscar en tus perfiles...">
               </div>
-              <div style="display:flex; align-items:center; gap:10px;">
-                <div class="tabs" id="profile-view">
-                  <button class="tab-btn active" data-view="grid" title="Cuadricula">▦</button>
-                  <button class="tab-btn" data-view="list" title="Lista"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></button>
-                </div>
-                <button class="btn btn-primary" id="btn-new-profile" data-magnet="0.22">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  Crear perfil
-                </button>
-              </div>
+
+              <select class="field lib-sort" id="profile-sort">
+                <option value="recent">Recientes</option>
+                <option value="name">Nombre</option>
+                <option value="version">Version</option>
+              </select>
+
+              <button class="btn btn-primary" id="btn-new-profile" data-magnet="0.22">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nuevo perfil
+              </button>
             </div>
-            <div class="profiles-grid" id="profiles-grid"></div>
+
+            <!-- Rejilla + panel lateral del perfil seleccionado -->
+            <div class="lib-layout">
+              <div class="lib-grid" id="profiles-grid"></div>
+
+              <aside class="lib-side" id="profile-side">
+                <div class="lib-side-inner">
+                  <div class="lib-side-cover" id="side-cover"></div>
+                  <div class="lib-side-name" id="side-name">—</div>
+
+                  <div class="lib-row">
+                    <span class="lib-key">Version</span>
+                    <span class="tag" id="side-version">—</span>
+                  </div>
+                  <div class="lib-row">
+                    <span class="lib-key">Loader</span>
+                    <span class="tag loader" id="side-loader">—</span>
+                  </div>
+                  <div class="lib-row">
+                    <span class="lib-key">Memoria</span>
+                    <span class="tag" id="side-ram">—</span>
+                  </div>
+
+                  <div class="lib-isolated">
+                    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    <span>Perfil aislado</span>
+                  </div>
+
+                  <div class="lib-side-actions">
+                    <button class="btn btn-icon btn-ghost" id="side-settings" title="Gestionar perfil">
+                      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    </button>
+                    <button class="btn btn-play-side" id="side-launch">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      Jugar
+                    </button>
+                  </div>
+                </div>
+              </aside>
+            </div>
           </div>
 
           <!-- Detalle de instancia -->
@@ -675,6 +738,7 @@
   <div class="toast-stack" id="toast-container"></div>
 
   <script src="scripts/background.js"></script>
+  <script src="scripts/skin3d.js"></script>
   <script src="scripts/fx.js"></script>
   <script src="scripts/app.js"></script>
 </body>

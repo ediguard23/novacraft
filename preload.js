@@ -55,6 +55,11 @@ contextBridge.exposeInMainWorld('api', {
   deleteProfileContent: (opts) => ipcRenderer.invoke('delete-profile-content', opts),
   getProfileLog: (profileId) => ipcRenderer.invoke('get-profile-log', profileId),
 
+  // Skins
+  getSkin: () => ipcRenderer.invoke('get-skin'),
+  pickAndUploadSkin: (variant) => ipcRenderer.invoke('pick-and-upload-skin', variant),
+  resetSkin: () => ipcRenderer.invoke('reset-skin'),
+
   // Actualizaciones
   getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
   checkUpdates: () => ipcRenderer.invoke('check-updates'),

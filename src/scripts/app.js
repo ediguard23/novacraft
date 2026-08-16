@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireLaunchEvents();
   wirePresence();
   wireUpdates();
+  wireSkin();
 
   await loadConfig();
   await loadSystem();
@@ -451,6 +452,92 @@ function wireUpdates () {
   };
 }
 
+
+/* --------------------------------------------------------------- la skin */
+
+let skinViewer = null;
+let skinVariant = 'classic';
+
+/**
+ * Carga la skin del jugador en el visor 3D.
+ * Con cuenta premium se pide a Mojang; sin ella se usa la del nick, que
+ * al menos deja ver algo en vez de un hueco vacio.
+ */
+async function loadSkin () {
+  const host = $('skin-viewer');
+  if (!host) return;
+
+  if (!skinViewer && window.createSkinViewer) {
+    skinViewer = window.createSkinViewer(host);
+  }
+  if (!skinViewer) return;
+
+  const res = await window.api.getSkin();
+  const url = res.skinUrl;
+  if (!url) return;
+
+  skinVariant = res.slim ? 'slim' : 'classic';
+  skinViewer.setSkin(url, res.slim);
+
+  $('skin-variant-tag').textContent = res.slim ? 'SLIM' : 'CLASICO';
+  $$('#skin-variant button').forEach((b) =>
+    b.classList.toggle('active', b.dataset.variant === skinVariant));
+
+  const premium = res.success;
+  $('btn-change-skin').disabled = !premium;
+  $('btn-reset-skin').disabled = !premium;
+  $('skin-hint').textContent = premium
+    ? 'Arrastra para girar · doble clic para centrar'
+    : 'Cambiar la skin necesita cuenta de Microsoft.';
+}
+
+function wireSkin () {
+  $$('#skin-variant button').forEach((b) => {
+    b.onclick = () => {
+      skinVariant = b.dataset.variant;
+      $$('#skin-variant button').forEach((x) => x.classList.toggle('active', x === b));
+      // Se repinta al momento para ver el cambio de brazos antes de subir nada
+      if (skinViewer) {
+        window.api.getSkin().then((r) => r.skinUrl && skinViewer.setSkin(r.skinUrl, skinVariant === 'slim'));
+      }
+    };
+  });
+
+  $('btn-change-skin').onclick = async () => {
+    const btn = $('btn-change-skin');
+    btn.disabled = true;
+    btn.textContent = 'Subiendo...';
+
+    const res = await window.api.pickAndUploadSkin(skinVariant);
+
+    btn.disabled = false;
+    btn.textContent = 'Cambiar skin';
+
+    if (res.success) {
+      window.fx.toast('Skin actualizada.', { type: 'success' });
+      log('Skin cambiada correctamente', 'status');
+      await loadSkin();
+      // El avatar de la barra superior tarda un poco en refrescarse en el CDN
+      const name = encodeURIComponent(config.username || 'Steve');
+      $('top-skin').src = `https://mc-heads.net/avatar/${name}/64?t=${Date.now()}`;
+    } else if (!res.canceled) {
+      window.fx.toast(res.error, { type: 'error', duration: 7000 });
+    }
+  };
+
+  $('btn-reset-skin').onclick = async () => {
+    const res = await window.api.resetSkin();
+    if (res.success) {
+      window.fx.toast('Skin restablecida.', { type: 'success' });
+      await loadSkin();
+    } else {
+      window.fx.toast(res.error, { type: 'error' });
+    }
+  };
+
+  loadSkin();
+}
+
 /* ------------------------------------------------------- presencia y amigos */
 
 /** Texto y color segun donde este jugando el usuario. */
@@ -551,11 +638,6 @@ function showProfileList () {
   renderProfiles();
 }
 
-function applyProfileView (view) {
-  $('profiles-grid').classList.toggle('as-list', view === 'list');
-  $$('#profile-view .tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
-}
-
 function bannerStyle (seed) {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
@@ -569,81 +651,128 @@ function bannerStyle (seed) {
   return `--ang:${ang}deg; --b1:hsl(${hue} ${sat}% ${l1}%); --b2:hsl(${hue} ${sat}% ${l2}%);`;
 }
 
+/** Perfil que esta seleccionado en la biblioteca (no es el activo del juego). */
+let selectedProfileId = null;
+
+function profilesFiltered () {
+  const term = ($('profile-search')?.value || '').toLowerCase().trim();
+  const sort = $('profile-sort')?.value || 'recent';
+  let list = (config.profiles || []).slice();
+
+  if (term) {
+    list = list.filter((p) =>
+      p.name.toLowerCase().includes(term) ||
+      String(p.version).toLowerCase().includes(term) ||
+      String(p.loader || '').toLowerCase().includes(term));
+  }
+
+  if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
+  else if (sort === 'version') list.sort((a, b) => String(b.version).localeCompare(String(a.version), undefined, { numeric: true }));
+  // 'recent' mantiene el orden de creacion, que es el de la lista guardada
+
+  return list;
+}
+
 function renderProfiles () {
   const grid = $('profiles-grid');
-  const profiles = config.profiles || [];
-  $('stat-profiles').textContent = profiles.length;
+  if (!grid) return;
 
-  if (profiles.length === 0) {
+  const all = config.profiles || [];
+  $('stat-profiles').textContent = all.length;
+
+  // Por defecto se selecciona el perfil activo del juego
+  if (!selectedProfileId || !all.some((p) => p.id === selectedProfileId)) {
+    selectedProfileId = config.activeProfileId || (all[0] && all[0].id) || null;
+  }
+
+  const list = profilesFiltered();
+
+  if (all.length === 0) {
     grid.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon"><svg class="bolt" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+      <div class="lib-empty">
+        <div class="empty-icon">${BOLT}</div>
         <h3>Todavia no hay perfiles</h3>
         <p>Un perfil es una instalacion independiente: su version, su modloader y sus propios mods y mundos.</p>
       </div>`;
+    renderProfileSide(null);
     return;
   }
 
-  grid.innerHTML = profiles.map((p) => {
-    const active = p.id === config.activeProfileId;
+  if (list.length === 0) {
+    grid.innerHTML = '<div class="lib-empty"><p>Ningun perfil coincide con la busqueda.</p></div>';
+    return;
+  }
+
+  const skin = encodeURIComponent(config.username || 'Steve');
+
+  grid.innerHTML = list.map((p) => {
     const url = imageUrl(p);
-
-    // Con imagen propia se usa de portada; si no, el degradado generado con el
-    // logo de marca. Nada de emojis: el perfil sin imagen lleva el rayo.
-    const banner = url
-      ? `<div class="pcard-banner has-image"><img src="${esc(url)}" alt=""></div>`
-      : `<div class="pcard-banner" style="${bannerStyle(p.name + p.id)}">
-           <span class="pcard-watermark">${BOLT}</span>
-         </div>`;
-
-    const icon = url
-      ? `<div class="pcard-icon has-image"><img src="${esc(url)}" alt=""></div>`
-      : `<div class="pcard-icon">${BOLT}</div>`;
-
+    const cover = url
+      ? `<img src="${esc(url)}" alt="">`
+      : BOLT;
+    const isActive = p.id === config.activeProfileId;
     return `
-    <div class="pcard ${active ? 'active' : ''}" data-id="${esc(p.id)}" data-spotlight>
-      ${banner}
-      ${active ? '<span class="pcard-badge">ACTIVO</span>' : ''}
-
-      <div class="pcard-foot">
-        ${icon}
-        <div class="pcard-meta">
-          <div class="pcard-name">${esc(p.name)}</div>
-          <div class="pcard-tags">
-            <span class="tag loader">${esc(p.loader || 'vanilla')}</span>
-            <span class="tag">${esc(p.version)}</span>
-            <span class="tag">${esc(p.ramMax || '4G')}</span>
-          </div>
+      <div class="lib-card ${p.id === selectedProfileId ? 'active' : ''}" data-id="${esc(p.id)}">
+        <div class="lib-cover" style="${bannerStyle(p.name + p.id)}">
+          ${cover}
+          <button class="lib-play" data-play="${esc(p.id)}" title="Jugar">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+          </button>
         </div>
-        <button class="pcard-more" data-act="manage" data-id="${esc(p.id)}" title="Gestionar">⋯</button>
-      </div>
-
-      <div class="pcard-hover">
-        <button class="btn btn-primary btn-sm" data-act="play" data-id="${esc(p.id)}">
-          ▶ ${active ? 'Jugar' : 'Activar y jugar'}
-        </button>
-        <button class="btn btn-sm" data-act="manage" data-id="${esc(p.id)}">Gestionar</button>
-      </div>
-    </div>`;
+        <div class="lib-foot">
+          <span class="lib-name">${esc(p.name)}</span>
+          ${isActive ? '<span class="lib-badge">ACTIVO</span>' : ''}
+          <img class="lib-head" src="https://mc-heads.net/avatar/${skin}/32" alt="">
+        </div>
+      </div>`;
   }).join('');
 
-  grid.querySelectorAll('[data-act]').forEach((btn) => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const profile = (config.profiles || []).find((p) => p.id === btn.dataset.id);
-      if (!profile) return;
-      if (btn.dataset.act === 'play') activateAndPlay(profile);
-      else openDetail(profile);
+  grid.querySelectorAll('.lib-card').forEach((card) => {
+    card.onclick = (e) => {
+      if (e.target.closest('[data-play]')) return;
+      selectedProfileId = card.dataset.id;
+      renderProfiles();
     };
   });
 
-  grid.querySelectorAll('.pcard').forEach((card) => {
-    card.onclick = (e) => {
-      if (e.target.closest('button')) return;
-      const profile = (config.profiles || []).find((p) => p.id === card.dataset.id);
-      if (profile) openDetail(profile);
+  grid.querySelectorAll('[data-play]').forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const p = (config.profiles || []).find((x) => x.id === btn.dataset.play);
+      if (p) activateAndPlay(p);
     };
   });
+
+  renderProfileSide((config.profiles || []).find((p) => p.id === selectedProfileId) || null);
+}
+
+/** Panel lateral con los datos del perfil seleccionado. */
+function renderProfileSide (p) {
+  const cover = $('side-cover');
+  if (!cover) return;
+
+  if (!p) {
+    cover.innerHTML = BOLT;
+    $('side-name').textContent = '—';
+    $('side-version').textContent = '—';
+    $('side-loader').textContent = '—';
+    $('side-ram').textContent = '—';
+    $('side-launch').disabled = true;
+    return;
+  }
+
+  const url = imageUrl(p);
+  cover.innerHTML = url ? `<img src="${esc(url)}" alt="">` : BOLT;
+  cover.setAttribute('style', bannerStyle(p.name + p.id));
+
+  $('side-name').textContent = p.name;
+  $('side-version').textContent = p.version;
+  $('side-loader').textContent = (p.loader || 'fabric').toUpperCase();
+  $('side-ram').textContent = p.ramMax || '4G';
+  $('side-launch').disabled = false;
+
+  $('side-launch').onclick = () => activateAndPlay(p);
+  $('side-settings').onclick = () => openDetail(p);
 }
 
 async function activateAndPlay (profile) {
@@ -672,16 +801,11 @@ function openDetail (profile) {
 }
 
 function wireProfiles () {
-  // Vista cuadricula / lista, recordada entre sesiones
-  const saved = localStorage.getItem('nova-profile-view') || 'grid';
-  applyProfileView(saved);
-
-  $$('#profile-view .tab-btn').forEach((btn) => {
-    btn.onclick = () => {
-      applyProfileView(btn.dataset.view);
-      localStorage.setItem('nova-profile-view', btn.dataset.view);
-    };
-  });
+  // Buscador y orden de la biblioteca
+  const search = $('profile-search');
+  if (search) search.oninput = () => renderProfiles();
+  const sort = $('profile-sort');
+  if (sort) sort.onchange = () => renderProfiles();
 
   $('btn-new-profile').onclick = openProfileModal;
   $('close-profile').onclick = () => $('profile-modal').classList.remove('on');
